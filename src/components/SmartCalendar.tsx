@@ -301,6 +301,42 @@ export function SmartCalendar() {
                 />
             )}
 
+            {/* Sidebar Toggle Handle (Slider) */}
+            <button
+                onClick={() => {
+                    // Mobile check usually via CSS visibility, but logic needs state.
+                    // We can just toggle both or check hidden state.
+                    // Simple heuristic: if mobile Menu is open, close it. If not, open.
+                    // But wait, desktop uses `isLocked`.
+                    if (window.innerWidth < 768) {
+                        setIsMobileMenuOpen(!isMobileMenuOpen);
+                    } else {
+                        toggleLock();
+                    }
+                }}
+                className={clsx(
+                    "fixed top-1/2 -translate-y-1/2 z-50 transition-all duration-300 shadow-[0_0_15px_rgba(16,185,129,0.3)] flex items-center justify-center",
+                    "w-6 h-24 rounded-r-xl border-y border-r border-slate-700 bg-slate-900/90 hover:bg-slate-800 text-emerald-500 hover:text-emerald-400 backdrop-blur-sm",
+                    // Position logic
+                    (isMobileMenuOpen || !isLocked)
+                        ? "translate-x-80" // If Sidebar Open (Mobile Open OR Desktop Unlocked)
+                        : "translate-x-0"  // If Sidebar Closed
+                )}
+                title="Toggle Settings"
+            >
+                {(isMobileMenuOpen || !isLocked) ? (
+                    // Chevron Left (Close)
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+                    </svg>
+                ) : (
+                    // Chevron Right (Open)
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                    </svg>
+                )}
+            </button>
+
             {/* Sidebar - Configuration Panel */}
             <aside
                 className={clsx(
@@ -489,46 +525,64 @@ export function SmartCalendar() {
                 </div>
             </aside>
 
+            {/* Side Handle Button */}
+            <button
+                onClick={() => {
+                    if (window.innerWidth < 768) { // Tailwind's 'md' breakpoint is 768px
+                        setIsMobileMenuOpen(!isMobileMenuOpen);
+                    } else {
+                        toggleLock();
+                    }
+                }}
+                className={clsx(
+                    "fixed top-1/2 -translate-y-1/2 z-50 h-16 w-6 flex items-center justify-center rounded-r-lg shadow-lg border-y border-r backdrop-blur-sm transition-all duration-300",
+                    // Mobile state
+                    isMobileMenuOpen
+                        ? "left-80 bg-emerald-500/10 border-emerald-500 text-emerald-400 hover:bg-emerald-500/20"
+                        : "left-0 bg-slate-800/80 border-slate-700 text-slate-400 hover:text-white hover:bg-slate-700",
+                    // Desktop state (overrides mobile for md and up)
+                    "md:left-auto", // Reset left for desktop
+                    isLocked
+                        ? "md:left-0 md:bg-slate-800/80 md:border-slate-700 md:text-slate-400 md:hover:text-white md:hover:bg-slate-700"
+                        : "md:left-80 md:bg-emerald-500/10 md:border-emerald-500 md:text-emerald-400 md:hover:bg-emerald-500/20"
+                )}
+                title={
+                    window.innerWidth < 768
+                        ? (isMobileMenuOpen ? "Close Settings" : "Open Settings")
+                        : (isLocked ? "Open Settings" : "Close & Lock Settings")
+                }
+            >
+                {window.innerWidth < 768 ? (
+                    isMobileMenuOpen ? (
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+                        </svg>
+                    ) : (
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                        </svg>
+                    )
+                ) : (
+                    isLocked ? (
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                        </svg>
+                    ) : (
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+                        </svg>
+                    )
+                )}
+            </button>
+
             {/* Main Content - Calendar */}
             <main className="flex-1 relative h-full flex flex-col bg-slate-950/20">
-                {/* Top Bar (Title + Toggle) */}
+                {/* Top Bar (Title) */}
                 <div className="flex-none p-4 md:p-6 flex justify-between items-center z-30">
                     <div className="flex items-center gap-2 md:gap-4">
-                        {/* Mobile Toggle */}
-                        <button
-                            onClick={() => setIsMobileMenuOpen(true)}
-                            className="md:hidden w-10 h-10 flex items-center justify-center rounded-lg bg-slate-900/80 border border-slate-800 text-slate-400 hover:text-white active:scale-95 transition-all"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-                            </svg>
-                        </button>
-
-                        <button
-                            onClick={toggleLock}
-                            className={clsx(
-                                "w-10 h-10 flex items-center justify-center rounded-full transition-all duration-300 shadow-lg border backdrop-blur-sm z-50",
-                                isLocked
-                                    ? "bg-slate-800/80 border-slate-700 text-slate-400 hover:text-white hover:bg-slate-700 hover:scale-105"
-                                    : "bg-emerald-500/10 border-emerald-500 text-emerald-400 hover:bg-emerald-500/20"
-                            )}
-                            title={isLocked ? "Open Settings" : "Close & Lock Settings"}
-                        >
-                            {isLocked ? (
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75 0h9.75" />
-                                </svg>
-                            ) : (
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-6 h-6">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-                                </svg>
-                            )}
-                        </button>
-
-                        <h2 className="text-3xl font-bold text-white flex items-center gap-3 drop-shadow-md">
-                            Smart Schedule
-                            {isLocked && <span className="text-[10px] uppercase font-mono tracking-widest text-slate-500 border border-slate-800 px-2 py-0.5 rounded-full bg-slate-950/50">Viewing Mode</span>}
-                        </h2>
+                        <h1 className="text-xl md:text-3xl font-black text-white tracking-tighter drop-shadow-lg">
+                            <span className="text-emerald-500">BIO</span> PLANNER
+                        </h1>
                     </div>
 
                     <div className="px-6 py-2 rounded-xl bg-slate-900/50 border border-slate-800/50 font-mono text-emerald-400 font-bold animate-pulse shadow-lg backdrop-blur">
