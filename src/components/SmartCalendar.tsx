@@ -14,6 +14,7 @@ export function SmartCalendar() {
     const [activeTab, setActiveTab] = useState<string>('global');
     const [showTrash, setShowTrash] = useState(false);
     const [confirmModal, setConfirmModal] = useState<{ message: string, onConfirm: () => void, onCancel?: () => void } | null>(null);
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // Mobile Toggle
 
     // Drag State
     const [draggedTab, setDraggedTab] = useState<string | null>(null);
@@ -292,18 +293,38 @@ export function SmartCalendar() {
                     <p className="text-emerald-500 font-mono text-xs uppercase tracking-widest animate-pulse">Syncing Database...</p>
                 </div>
             )}
+            {/* Mobile Backdrop */}
+            {isMobileMenuOpen && (
+                <div
+                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-30 md:hidden animate-in fade-in"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                />
+            )}
+
             {/* Sidebar - Configuration Panel */}
             <aside
                 className={clsx(
-                    "absolute md:relative z-40 h-full w-80 bg-slate-950/80 backdrop-blur-xl border-r border-slate-800 transition-all duration-500 ease-in-out transform flex flex-col font-sans shadow-2xl",
-                    isLocked ? "-translate-x-full opacity-0 md:w-0 md:opacity-0 overflow-hidden" : "translate-x-0 opacity-100"
+                    "fixed md:relative inset-y-0 left-0 z-40 h-full w-80 bg-slate-950/95 md:bg-slate-950/80 backdrop-blur-xl border-r border-slate-800 transition-all duration-300 ease-in-out transform flex flex-col font-sans shadow-2xl",
+                    // Desktop: Respect isLocked. Mobile: Respect isMobileMenuOpen
+                    isLocked ? "md:w-0 md:opacity-0 md:overflow-hidden md:-translate-x-full" : "md:w-80 md:translate-x-0 md:opacity-100",
+                    isMobileMenuOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
                 )}
             >
                 <div className="p-6 space-y-8 overflow-y-auto flex-1 custom-scrollbar">
                     {/* Header in Sidebar */}
-                    <div>
-                        <h2 className="text-2xl font-bold text-white mb-1">Settings</h2>
-                        <p className="text-xs text-slate-500 uppercase tracking-widest">Configure Schedule</p>
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <h2 className="text-2xl font-bold text-white mb-1">Settings</h2>
+                            <p className="text-xs text-slate-500 uppercase tracking-widest">Configure Schedule</p>
+                        </div>
+                        <button
+                            className="md:hidden text-slate-500 hover:text-white p-1"
+                            onClick={() => setIsMobileMenuOpen(false)}
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
                     </div>
 
                     {/* Time Configs */}
@@ -471,8 +492,18 @@ export function SmartCalendar() {
             {/* Main Content - Calendar */}
             <main className="flex-1 relative h-full flex flex-col bg-slate-950/20">
                 {/* Top Bar (Title + Toggle) */}
-                <div className="flex-none p-6 flex justify-between items-center z-30">
-                    <div className="flex items-center gap-4">
+                <div className="flex-none p-4 md:p-6 flex justify-between items-center z-30">
+                    <div className="flex items-center gap-2 md:gap-4">
+                        {/* Mobile Toggle */}
+                        <button
+                            onClick={() => setIsMobileMenuOpen(true)}
+                            className="md:hidden w-10 h-10 flex items-center justify-center rounded-lg bg-slate-900/80 border border-slate-800 text-slate-400 hover:text-white active:scale-95 transition-all"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+                            </svg>
+                        </button>
+
                         <button
                             onClick={toggleLock}
                             className={clsx(
