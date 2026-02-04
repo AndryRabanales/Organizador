@@ -22,11 +22,6 @@ export function ProgressBar({
     // Dynamic color logic if not overridden
     // For normal: Low is bad (red), High is good (green)
     // For inverted: Low is good (green), High is bad (red)
-    let finalColor = colorClass;
-    if (!colorClass) {
-        // Default adaptive colors could go here but we will rely on prop for now or CSS classes
-        // Let's stick to the prop for specific modules
-    }
 
     return (
         <div className="w-full space-y-2">
