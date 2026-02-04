@@ -298,11 +298,11 @@ export function SmartCalendar() {
             <div
                 className={clsx(
                     "flex-none bg-slate-950/95 backdrop-blur-xl border-b border-slate-800 transition-all duration-300 ease-in-out overflow-hidden z-40",
-                    !isLocked ? "max-h-[300px] opacity-100 py-4" : "max-h-0 opacity-0 py-0"
+                    !isLocked ? "max-h-[160px] opacity-100 py-2" : "max-h-0 opacity-0 py-0"
                 )}
             >
-                <div className="container mx-auto px-4 overflow-y-auto max-h-[280px] custom-scrollbar">
-                    <div className="flex flex-col md:flex-row gap-6 items-start">
+                <div className="container mx-auto px-4 overflow-y-auto max-h-[140px] custom-scrollbar">
+                    <div className="flex flex-col md:flex-row gap-4 items-start">
                         {/* Label Creator */}
                         <div className="w-full md:w-64 flex-none space-y-3">
                             <label className="block text-xs font-bold text-slate-500 uppercase">Manage Labels</label>
@@ -529,7 +529,7 @@ export function SmartCalendar() {
             {/* --- BOTTOM PANEL: CONFIG & STORIES --- */}
             <div className={clsx(
                 "flex-none bg-slate-950/95 backdrop-blur-xl border-t border-slate-800 transition-all duration-300 ease-in-out relative z-40",
-                !isLocked ? "py-4 md:py-6" : "py-0"
+                !isLocked ? "py-2" : "py-0"
             )}>
                 {/* Toggle Handle (Absolute Top Center) */}
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full z-50">
@@ -559,17 +559,17 @@ export function SmartCalendar() {
                 {/* Wrapper for smooth height scaling */}
                 <div className={clsx(
                     "overflow-hidden transition-all duration-300 ease-in-out",
-                    !isLocked ? "max-h-[50vh] opacity-100" : "max-h-0 opacity-0"
+                    !isLocked ? "max-h-[35vh] opacity-100" : "max-h-0 opacity-0"
                 )}>
-                    <div className="container mx-auto px-4 flex flex-col md:flex-row gap-8 items-start justify-center h-full overflow-y-auto custom-scrollbar">
+                    <div className="container mx-auto px-4 flex flex-col md:flex-row gap-4 items-start justify-center h-full overflow-y-auto custom-scrollbar">
 
                         {/* Time Config */}
-                        <div className="w-full md:w-auto flex-none space-y-3 min-w-[200px]">
+                        <div className="w-full md:w-auto flex-none space-y-2 min-w-[200px]">
                             <label className="block text-xs font-bold text-slate-500 uppercase flex items-center gap-2">
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-slate-400"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
                                 Time Settings
                             </label>
-                            <div className="bg-slate-900 border border-slate-800 rounded-lg p-3 space-y-3">
+                            <div className="bg-slate-900 border border-slate-800 rounded-lg p-2 space-y-2">
                                 <div className="flex items-center gap-2 justify-between">
                                     <span className="text-sm text-slate-300">Start / End</span>
                                     <div className="flex items-center gap-1 bg-slate-950 border border-slate-800 rounded px-1">
@@ -607,13 +607,13 @@ export function SmartCalendar() {
                             {!isCreatingStory ? (
                                 <button
                                     onClick={() => setIsCreatingStory(true)}
-                                    className="w-full flex items-center justify-center gap-2 bg-slate-900 hover:bg-red-500/10 border border-slate-800 hover:border-red-500/50 text-slate-400 hover:text-red-400 p-3 rounded-lg border-dashed transition-all group"
+                                    className="w-full flex items-center justify-center gap-2 bg-slate-900 hover:bg-red-500/10 border border-slate-800 hover:border-red-500/50 text-slate-400 hover:text-red-400 p-2 rounded-lg border-dashed transition-all group"
                                 >
                                     <span className="group-hover:scale-110 transition-transform text-lg">+</span>
                                     <span>Add New Story</span>
                                 </button>
                             ) : (
-                                <div className="space-y-3 bg-slate-900 p-3 rounded-lg border border-slate-800 animate-in fade-in zoom-in-95 shadow-lg">
+                                <div className="space-y-2 bg-slate-900 p-2 rounded-lg border border-slate-800 animate-in fade-in zoom-in-95 shadow-lg">
                                     <input
                                         type="text"
                                         placeholder="Title (e.g., Meeting)"
