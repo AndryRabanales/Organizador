@@ -26,6 +26,10 @@ export function SmartCalendar() {
     const [now, setNow] = useState(new Date());
     useEffect(() => {
         const timer = setInterval(() => setNow(new Date()), 1000);
+
+        // Initial Fetch
+        useCalendarStore.getState().fetchData();
+
         return () => clearInterval(timer);
     }, []);
 
@@ -282,6 +286,12 @@ export function SmartCalendar() {
 
     return (
         <div className="flex h-screen w-full overflow-hidden relative">
+            {useCalendarStore(state => state.isLoading) && (
+                <div className="absolute inset-0 z-[200] bg-slate-950 flex flex-col items-center justify-center gap-4 animate-in fade-in duration-500">
+                    <div className="w-8 h-8 rounded-full border-4 border-emerald-500/30 border-t-emerald-500 animate-spin" />
+                    <p className="text-emerald-500 font-mono text-xs uppercase tracking-widest animate-pulse">Syncing Database...</p>
+                </div>
+            )}
             {/* Sidebar - Configuration Panel */}
             <aside
                 className={clsx(
