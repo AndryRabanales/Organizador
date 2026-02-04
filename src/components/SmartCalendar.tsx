@@ -14,7 +14,7 @@ export function SmartCalendar() {
     const [activeTab, setActiveTab] = useState<string>('global');
     const [showTrash, setShowTrash] = useState(false);
     const [confirmModal, setConfirmModal] = useState<{ message: string, onConfirm: () => void, onCancel?: () => void } | null>(null);
-    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // Mobile Toggle
+
 
     // Drag State
     const [draggedTab, setDraggedTab] = useState<string | null>(null);
@@ -286,313 +286,122 @@ export function SmartCalendar() {
     const viewingStory = stories.find(s => s.id === viewingStoryId);
 
     return (
-        <div className="flex h-screen w-full overflow-hidden relative">
+        <div className="flex flex-col h-screen w-full relative bg-slate-950/20 overflow-hidden">
             {useCalendarStore(state => state.isLoading) && (
                 <div className="absolute inset-0 z-[200] bg-slate-950 flex flex-col items-center justify-center gap-4 animate-in fade-in duration-500">
                     <div className="w-8 h-8 rounded-full border-4 border-emerald-500/30 border-t-emerald-500 animate-spin" />
                     <p className="text-emerald-500 font-mono text-xs uppercase tracking-widest animate-pulse">Syncing Database...</p>
                 </div>
             )}
-            {/* Mobile Backdrop */}
-            {isMobileMenuOpen && (
-                <div
-                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-30 md:hidden animate-in fade-in"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                />
-            )}
 
-            {/* Sidebar Toggle Handle (Slider) */}
-            <button
-                onClick={() => {
-                    // Mobile check usually via CSS visibility, but logic needs state.
-                    // We can just toggle both or check hidden state.
-                    // Simple heuristic: if mobile Menu is open, close it. If not, open.
-                    // But wait, desktop uses `isLocked`.
-                    if (window.innerWidth < 768) {
-                        setIsMobileMenuOpen(!isMobileMenuOpen);
-                    } else {
-                        toggleLock();
-                    }
-                }}
+            {/* --- TOP PANEL: LABELS --- */}
+            <div
                 className={clsx(
-                    "fixed top-1/2 -translate-y-1/2 z-50 transition-all duration-300 shadow-[0_0_15px_rgba(16,185,129,0.3)] flex items-center justify-center",
-                    "w-6 h-24 rounded-r-xl border-y border-r border-slate-700 bg-slate-900/90 hover:bg-slate-800 text-emerald-500 hover:text-emerald-400 backdrop-blur-sm",
-                    // Position logic
-                    (isMobileMenuOpen || !isLocked)
-                        ? "translate-x-80" // If Sidebar Open (Mobile Open OR Desktop Unlocked)
-                        : "translate-x-0"  // If Sidebar Closed
-                )}
-                title="Toggle Settings"
-            >
-                {(isMobileMenuOpen || !isLocked) ? (
-                    // Chevron Left (Close)
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
-                    </svg>
-                ) : (
-                    // Chevron Right (Open)
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
-                    </svg>
-                )}
-            </button>
-
-            {/* Sidebar - Configuration Panel */}
-            <aside
-                className={clsx(
-                    "fixed md:relative inset-y-0 left-0 z-40 h-full w-80 bg-slate-950/95 md:bg-slate-950/80 backdrop-blur-xl border-r border-slate-800 transition-all duration-300 ease-in-out transform flex flex-col font-sans shadow-2xl",
-                    // Desktop: Respect isLocked. Mobile: Respect isMobileMenuOpen
-                    isLocked ? "md:w-0 md:opacity-0 md:overflow-hidden md:-translate-x-full" : "md:w-80 md:translate-x-0 md:opacity-100",
-                    isMobileMenuOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+                    "flex-none bg-slate-950/95 backdrop-blur-xl border-b border-slate-800 transition-all duration-300 ease-in-out overflow-hidden z-40",
+                    !isLocked ? "max-h-[300px] opacity-100 py-4" : "max-h-0 opacity-0 py-0"
                 )}
             >
-                <div className="p-6 space-y-8 overflow-y-auto flex-1 custom-scrollbar">
-                    {/* Header in Sidebar */}
-                    <div className="flex justify-between items-start">
-                        <div>
-                            <h2 className="text-2xl font-bold text-white mb-1">Settings</h2>
-                            <p className="text-xs text-slate-500 uppercase tracking-widest">Configure Schedule</p>
-                        </div>
-                        <button
-                            className="md:hidden text-slate-500 hover:text-white p-1"
-                            onClick={() => setIsMobileMenuOpen(false)}
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                        </button>
-                    </div>
-
-                    {/* Time Configs */}
-                    <div className="space-y-4">
-                        <div className="space-y-1">
-                            <label className="block text-xs font-bold text-slate-500 uppercase">Start Hour</label>
-                            <input type="number" min="0" max="23" className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 focus:border-emerald-500 transition-colors outline-none" value={config.startHour} onChange={(e) => handleConfigChange('startHour', e.target.value)} />
-                        </div>
-                        <div className="space-y-1">
-                            <label className="block text-xs font-bold text-slate-500 uppercase">End Hour</label>
-                            <input type="number" min="1" max="24" className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 focus:border-emerald-500 transition-colors outline-none" value={config.endHour} onChange={(e) => handleConfigChange('endHour', e.target.value)} />
-                        </div>
-                        <div className="space-y-1">
-                            <label className="block text-xs font-bold text-slate-500 uppercase">Step (Min)</label>
-                            <select className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 focus:border-emerald-500 transition-colors outline-none cursor-pointer" value={config.stepMinutes} onChange={(e) => handleConfigChange('stepMinutes', e.target.value)}>
-                                <option value="10">10 Min</option>
-                                <option value="15">15 Min</option>
-                                <option value="20">20 Min</option>
-                                <option value="30">30 Min</option>
-                                <option value="60">60 Min</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div className="w-full border-t border-slate-800/50" />
-
-                    {/* Label Creator */}
-                    <div className="space-y-3">
-                        <label className="block text-xs font-bold text-slate-500 uppercase">Manage Labels</label>
-                        <div className="flex bg-slate-900 border border-slate-800 rounded-lg p-1.5 focus-within:border-emerald-500/50 transition-colors w-full shadow-inner">
-                            <input
-                                type="text"
-                                placeholder="New Label..."
-                                className="flex-1 bg-transparent border-none text-sm outline-none px-2 text-slate-200 placeholder:text-slate-600 min-w-0"
-                                value={newLabelName}
-                                onChange={(e) => setNewLabelName(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && handleAddLabel()}
-                            />
-                            <div className="flex items-center gap-2 pr-1">
-                                <div className="relative group cursor-pointer w-6 h-6 rounded-md overflow-hidden ring-1 ring-slate-700 hover:ring-slate-500 transition-all">
-                                    <div className="absolute inset-0 w-full h-full" style={{ backgroundColor: newLabelColor }} />
-                                    <input type="color" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" value={newLabelColor} onChange={(e) => setNewLabelColor(e.target.value)} title="Choose Color" />
-                                </div>
-                                <button onClick={handleAddLabel} className="bg-slate-800 hover:bg-emerald-600 text-white p-1 rounded-md transition-all duration-300 shadow active:scale-95">
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Label List in Sidebar */}
-                        <div className="flex flex-wrap gap-2 pt-2">
-                            {labels.map(lbl => (
-                                <div
-                                    key={lbl.id}
-                                    onClick={() => setSelectedBrush(lbl.id)}
-                                    className={clsx(
-                                        "px-3 py-1.5 rounded-md text-xs font-medium border flex items-center gap-2 transition-all cursor-pointer group select-none w-full hover:bg-slate-800/50",
-                                        selectedBrush === lbl.id ? "ring-1 ring-offset-1 ring-offset-slate-950" : "opacity-90 hover:opacity-100"
-                                    )}
-                                    style={{
-                                        backgroundColor: `${lbl.color}15`,
-                                        borderColor: lbl.color,
-                                        color: lbl.color
-                                    }}
-                                >
-                                    <div className="w-2 h-2 rounded-full shadow-[0_0_8px_currentColor]" style={{ backgroundColor: lbl.color }} />
-                                    <span className="flex-1 truncate">{lbl.name}</span>
-
-                                    <button
-                                        className="opacity-0 group-hover:opacity-100 hover:text-white transition-opacity p-1"
-                                        onClick={(e) => { e.stopPropagation(); setEditingLabelId(lbl.id); setActiveTab('global'); }}
-                                        title="Edit Notes"
-                                    >
-                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3"><path d="m2.695 14.762-1.262 3.155a.5.5 0 0 0 .65.65l3.155-1.262a4 4 0 0 0 1.343-.886L17.5 5.501a2.121 2.121 0 0 0-3-3L3.58 13.419a4 4 0 0 0-.885 1.343Z" /></svg>
-                                    </button>
-
-                                    <span
-                                        className="opacity-0 group-hover:opacity-100 hover:text-red-400 transition-colors p-1"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-
-                                            // 1. Check Global Notes
-                                            const hasGlobalNotes = lbl.notes && lbl.notes.trim().length > 0;
-
-                                            // 2. Check Custom Tabs
-                                            const hasTabContent = Object.values(lbl.customTabs || {}).some(tab => tab.content && tab.content.trim().length > 0);
-
-                                            // 3. Check Instance Notes ("Apartado Individual")
-                                            const hasInstanceNotes = Object.entries(schedule).some(([key, labelId]) => {
-                                                if (labelId !== lbl.id) return false;
-                                                return instanceNotes[key] && instanceNotes[key].trim().length > 0;
-                                            });
-
-                                            if (hasGlobalNotes || hasTabContent || hasInstanceNotes) {
-                                                setConfirmModal({
-                                                    message: "¿Deseas eliminar la etiqueta?",
-                                                    onConfirm: () => removeLabel(lbl.id)
-                                                });
-                                            } else {
-                                                removeLabel(lbl.id);
-                                            }
-                                        }}
-                                    >×</span>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    <div className="w-full border-t border-slate-800/50" />
-
-                    {/* Stories Section */}
-                    <div className="space-y-3">
-                        <div className="flex justify-between items-center">
-                            <label className="block text-xs font-bold text-slate-500 uppercase">Stories</label>
-                            <div className="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)] animate-pulse"></div>
-                        </div>
-
-                        {!isCreatingStory ? (
-                            <Button size="sm" onClick={() => setIsCreatingStory(true)} className="w-full dashed border-slate-700 text-slate-400 hover:text-white hover:border-emerald-500 hover:bg-emerald-500/10 transition-all">
-                                + Agregar recordatorio
-                            </Button>
-                        ) : (
-                            <div className="space-y-3 bg-slate-900/50 p-3 rounded-lg border border-slate-800 animate-in fade-in zoom-in-95">
+                <div className="container mx-auto px-4 overflow-y-auto max-h-[280px] custom-scrollbar">
+                    <div className="flex flex-col md:flex-row gap-6 items-start">
+                        {/* Label Creator */}
+                        <div className="w-full md:w-64 flex-none space-y-3">
+                            <label className="block text-xs font-bold text-slate-500 uppercase">Manage Labels</label>
+                            <div className="flex bg-slate-900 border border-slate-800 rounded-lg p-1.5 focus-within:border-emerald-500/50 transition-colors w-full shadow-inner">
                                 <input
                                     type="text"
-                                    placeholder="Title"
-                                    className="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1 text-sm text-slate-200 outline-none focus:border-red-500 transition-colors"
-                                    value={newStoryTitle}
-                                    onChange={(e) => setNewStoryTitle(e.target.value)}
+                                    placeholder="New Label..."
+                                    className="flex-1 bg-transparent border-none text-sm outline-none px-2 text-slate-200 placeholder:text-slate-600 min-w-0"
+                                    value={newLabelName}
+                                    onChange={(e) => setNewLabelName(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleAddLabel()}
                                 />
-                                <div className="flex gap-2">
-                                    <select className="bg-slate-950 border border-slate-800 rounded px-2 py-1 text-xs text-slate-300 outline-none flex-1" value={newStoryDay} onChange={(e) => setNewStoryDay(Number(e.target.value))}>
-                                        {DAYS.map((d, i) => <option key={d} value={i}>{d}</option>)}
-                                    </select>
-                                    <div className="flex items-center gap-1 bg-slate-950 border border-slate-800 rounded px-1">
-                                        <input type="number" min="0" max="23" className="w-8 bg-transparent text-center text-xs outline-none" value={newStoryHour} onChange={(e) => setNewStoryHour(Number(e.target.value))} />
-                                        <span className="text-slate-500">:</span>
-                                        <input type="number" min="0" max="59" className="w-8 bg-transparent text-center text-xs outline-none" value={newStoryMinute} onChange={(e) => setNewStoryMinute(Number(e.target.value))} />
+                                <div className="flex items-center gap-2 pr-1">
+                                    <div className="relative group cursor-pointer w-6 h-6 rounded-md overflow-hidden ring-1 ring-slate-700 hover:ring-slate-500 transition-all">
+                                        <div className="absolute inset-0 w-full h-full" style={{ backgroundColor: newLabelColor }} />
+                                        <input type="color" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" value={newLabelColor} onChange={(e) => setNewLabelColor(e.target.value)} title="Choose Color" />
                                     </div>
-                                </div>
-                                <textarea
-                                    className="w-full h-16 bg-slate-950 border border-slate-800 rounded px-2 py-1 text-xs text-slate-300 outline-none resize-none"
-                                    placeholder="Description..."
-                                    value={newStoryDesc}
-                                    onChange={(e) => setNewStoryDesc(e.target.value)}
-                                />
-                                <div className="flex gap-2 justify-end">
-                                    <button onClick={() => setIsCreatingStory(false)} className="text-xs text-slate-500 hover:text-white transition-colors">Cancel</button>
-                                    <button onClick={handleAddStory} className="text-xs bg-red-500/20 text-red-400 border border-red-500/50 px-3 py-1 rounded hover:bg-red-500 hover:text-white transition-all">Save</button>
+                                    <button onClick={handleAddLabel} className="bg-slate-800 hover:bg-emerald-600 text-white p-1 rounded-md transition-all duration-300 shadow active:scale-95">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+                                    </button>
                                 </div>
                             </div>
-                        )}
-                    </div>
+                        </div>
 
-                    <div className="w-full border-t border-slate-800/50" />
+                        {/* Label List */}
+                        <div className="flex-1 w-full">
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-3">Available Labels</label>
+                            <div className="flex flex-wrap gap-2">
+                                {labels.map(lbl => (
+                                    <div
+                                        key={lbl.id}
+                                        onClick={() => setSelectedBrush(lbl.id)}
+                                        className={clsx(
+                                            "px-3 py-1.5 rounded-md text-xs font-medium border flex items-center gap-2 transition-all cursor-pointer group select-none hover:bg-slate-800/50",
+                                            selectedBrush === lbl.id ? "ring-1 ring-offset-1 ring-offset-slate-950 scale-105" : "opacity-90 hover:opacity-100"
+                                        )}
+                                        style={{
+                                            backgroundColor: `${lbl.color}15`,
+                                            borderColor: lbl.color,
+                                            color: lbl.color
+                                        }}
+                                    >
+                                        <div className="w-2 h-2 rounded-full shadow-[0_0_8px_currentColor]" style={{ backgroundColor: lbl.color }} />
+                                        <span className="truncate max-w-[100px]">{lbl.name}</span>
 
+                                        <button
+                                            className="opacity-0 group-hover:opacity-100 hover:text-white transition-opacity p-1"
+                                            onClick={(e) => { e.stopPropagation(); setEditingLabelId(lbl.id); setActiveTab('global'); }}
+                                            title="Edit Notes"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3"><path d="m2.695 14.762-1.262 3.155a.5.5 0 0 0 .65.65l3.155-1.262a4 4 0 0 0 1.343-.886L17.5 5.501a2.121 2.121 0 0 0-3-3L3.58 13.419a4 4 0 0 0-.885 1.343Z" /></svg>
+                                        </button>
 
+                                        <span
+                                            className="opacity-0 group-hover:opacity-100 hover:text-red-400 transition-colors p-1"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                const hasGlobalNotes = lbl.notes && lbl.notes.trim().length > 0;
+                                                const hasTabContent = Object.values(lbl.customTabs || {}).some(tab => tab.content && tab.content.trim().length > 0);
+                                                const hasInstanceNotes = Object.entries(schedule).some(([key, labelId]) => {
+                                                    if (labelId !== lbl.id) return false;
+                                                    return instanceNotes[key] && instanceNotes[key].trim().length > 0;
+                                                });
 
-                    <div className="pt-8">
-                        <Button size="sm" variant="danger" className="w-full" onClick={clearSchedule}>Clear Entire Schedule</Button>
+                                                if (hasGlobalNotes || hasTabContent || hasInstanceNotes) {
+                                                    setConfirmModal({
+                                                        message: "¿Deseas eliminar la etiqueta?",
+                                                        onConfirm: () => removeLabel(lbl.id)
+                                                    });
+                                                } else {
+                                                    removeLabel(lbl.id);
+                                                }
+                                            }}
+                                        >×</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </aside>
+            </div>
 
-            {/* Side Handle Button */}
-            <button
-                onClick={() => {
-                    if (window.innerWidth < 768) { // Tailwind's 'md' breakpoint is 768px
-                        setIsMobileMenuOpen(!isMobileMenuOpen);
-                    } else {
-                        toggleLock();
-                    }
-                }}
-                className={clsx(
-                    "fixed top-1/2 -translate-y-1/2 z-50 h-16 w-6 flex items-center justify-center rounded-r-lg shadow-lg border-y border-r backdrop-blur-sm transition-all duration-300",
-                    // Mobile state
-                    isMobileMenuOpen
-                        ? "left-80 bg-emerald-500/10 border-emerald-500 text-emerald-400 hover:bg-emerald-500/20"
-                        : "left-0 bg-slate-800/80 border-slate-700 text-slate-400 hover:text-white hover:bg-slate-700",
-                    // Desktop state (overrides mobile for md and up)
-                    "md:left-auto", // Reset left for desktop
-                    isLocked
-                        ? "md:left-0 md:bg-slate-800/80 md:border-slate-700 md:text-slate-400 md:hover:text-white md:hover:bg-slate-700"
-                        : "md:left-80 md:bg-emerald-500/10 md:border-emerald-500 md:text-emerald-400 md:hover:bg-emerald-500/20"
-                )}
-                title={
-                    window.innerWidth < 768
-                        ? (isMobileMenuOpen ? "Close Settings" : "Open Settings")
-                        : (isLocked ? "Open Settings" : "Close & Lock Settings")
-                }
-            >
-                {window.innerWidth < 768 ? (
-                    isMobileMenuOpen ? (
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-                        </svg>
-                    ) : (
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                        </svg>
-                    )
-                ) : (
-                    isLocked ? (
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                        </svg>
-                    ) : (
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-                        </svg>
-                    )
-                )}
-            </button>
-
-            {/* Main Content - Calendar */}
-            <main className="flex-1 relative h-full flex flex-col bg-slate-950/20">
-                {/* Top Bar (Title) */}
-                <div className="flex-none p-4 md:p-6 flex justify-between items-center z-30">
-                    <div className="flex items-center gap-2 md:gap-4">
-                        <h1 className="text-xl md:text-3xl font-black text-white tracking-tighter drop-shadow-lg">
+            {/* --- MIDDLE: CALENDAR --- */}
+            <main className="flex-1 relative overflow-hidden flex flex-col min-h-0">
+                {/* Header inside Main (Always Visible) */}
+                <div className="flex-none p-4 flex justify-between items-center z-30 bg-gradient-to-b from-slate-950/50 to-transparent">
+                    <div className="flex items-center gap-2">
+                        <h1 className="text-xl font-black text-white tracking-tighter drop-shadow-lg">
                             <span className="text-emerald-500">BIO</span> PLANNER
                         </h1>
                     </div>
-
-                    <div className="px-6 py-2 rounded-xl bg-slate-900/50 border border-slate-800/50 font-mono text-emerald-400 font-bold animate-pulse shadow-lg backdrop-blur">
+                    <div className="px-4 py-1.5 rounded-xl bg-slate-900/50 border border-slate-800/50 font-mono text-emerald-400 font-bold text-sm backdrop-blur">
                         {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                     </div>
                 </div>
 
-                {/* Calendar Grid Container */}
-                <div ref={containerRef} className="flex-1 overflow-auto p-6 pt-0 custom-scrollbar">
-                    <div className={clsx("glass-panel p-1 relative select-none transition-all duration-500 mx-auto max-w-6xl")}>
+                {/* Grid */}
+                <div ref={containerRef} className="flex-1 overflow-auto p-4 pt-0 custom-scrollbar">
+                    <div className={clsx("glass-panel p-1 relative select-none transition-all duration-500 mx-auto max-w-6xl mb-16")}>
                         {/* Real-time Arrow */}
                         {isTimeVisible && (
                             <div
@@ -716,6 +525,138 @@ export function SmartCalendar() {
                     </div>
                 </div>
             </main>
+
+            {/* --- BOTTOM PANEL: CONFIG & STORIES --- */}
+            <div className={clsx(
+                "flex-none bg-slate-950/95 backdrop-blur-xl border-t border-slate-800 transition-all duration-300 ease-in-out relative z-40",
+                !isLocked ? "py-4 md:py-6" : "py-0"
+            )}>
+                {/* Toggle Handle (Absolute Top Center) */}
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full z-50">
+                    <button
+                        onClick={toggleLock}
+                        className={clsx(
+                            "flex items-center justify-center w-16 h-8 rounded-t-xl border-t border-x border-slate-700 backdrop-blur-md transition-all duration-300 shadow-[0_-5px_15px_rgba(0,0,0,0.5)]",
+                            !isLocked
+                                ? "bg-slate-950 text-slate-400 border-b-slate-950 translate-y-[1px]"
+                                : "bg-slate-900/80 text-emerald-500 hover:text-emerald-400 hover:bg-slate-800 border-b-slate-800"
+                        )}
+                        title={!isLocked ? "Close Configuration" : "Open Configuration"}
+                    >
+                        {!isLocked ? (
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                            </svg>
+                        ) : (
+                            <div className="flex flex-col items-center gap-0.5 animate-pulse">
+                                <div className="w-8 h-1 rounded-full bg-emerald-500/50" />
+                                <div className="w-5 h-1 rounded-full bg-emerald-500/30" />
+                            </div>
+                        )}
+                    </button>
+                </div>
+
+                {/* Wrapper for smooth height scaling */}
+                <div className={clsx(
+                    "overflow-hidden transition-all duration-300 ease-in-out",
+                    !isLocked ? "max-h-[50vh] opacity-100" : "max-h-0 opacity-0"
+                )}>
+                    <div className="container mx-auto px-4 flex flex-col md:flex-row gap-8 items-start justify-center h-full overflow-y-auto custom-scrollbar">
+
+                        {/* Time Config */}
+                        <div className="w-full md:w-auto flex-none space-y-3 min-w-[200px]">
+                            <label className="block text-xs font-bold text-slate-500 uppercase flex items-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-slate-400"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
+                                Time Settings
+                            </label>
+                            <div className="bg-slate-900 border border-slate-800 rounded-lg p-3 space-y-3">
+                                <div className="flex items-center gap-2 justify-between">
+                                    <span className="text-sm text-slate-300">Start / End</span>
+                                    <div className="flex items-center gap-1 bg-slate-950 border border-slate-800 rounded px-1">
+                                        <input type="number" min="0" max="23" className="w-8 bg-transparent text-center text-sm outline-none text-emerald-400" value={config.startHour} onChange={(e) => handleConfigChange('startHour', e.target.value)} />
+                                        <span className="text-slate-600">-</span>
+                                        <input type="number" min="1" max="24" className="w-8 bg-transparent text-center text-sm outline-none text-emerald-400" value={config.endHour} onChange={(e) => handleConfigChange('endHour', e.target.value)} />
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2 justify-between">
+                                    <span className="text-sm text-slate-300">Interval</span>
+                                    <select
+                                        className="bg-slate-950 border border-slate-800 rounded px-2 py-1 text-sm text-emerald-400 outline-none cursor-pointer"
+                                        value={config.stepMinutes}
+                                        onChange={(e) => handleConfigChange('stepMinutes', e.target.value)}
+                                    >
+                                        <option value="10">10m</option>
+                                        <option value="15">15m</option>
+                                        <option value="20">20m</option>
+                                        <option value="30">30m</option>
+                                        <option value="60">60m</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Stories Management */}
+                        <div className="w-full md:w-96 flex-none space-y-3">
+                            <div className="flex justify-between items-center">
+                                <label className="block text-xs font-bold text-slate-500 uppercase flex items-center gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-red-400"><path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" /></svg>
+                                    Stories & Reminders
+                                </label>
+                            </div>
+
+                            {!isCreatingStory ? (
+                                <button
+                                    onClick={() => setIsCreatingStory(true)}
+                                    className="w-full flex items-center justify-center gap-2 bg-slate-900 hover:bg-red-500/10 border border-slate-800 hover:border-red-500/50 text-slate-400 hover:text-red-400 p-3 rounded-lg border-dashed transition-all group"
+                                >
+                                    <span className="group-hover:scale-110 transition-transform text-lg">+</span>
+                                    <span>Add New Story</span>
+                                </button>
+                            ) : (
+                                <div className="space-y-3 bg-slate-900 p-3 rounded-lg border border-slate-800 animate-in fade-in zoom-in-95 shadow-lg">
+                                    <input
+                                        type="text"
+                                        placeholder="Title (e.g., Meeting)"
+                                        className="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1.5 text-sm text-slate-200 outline-none focus:border-red-500 transition-colors"
+                                        value={newStoryTitle}
+                                        onChange={(e) => setNewStoryTitle(e.target.value)}
+                                        autoFocus
+                                    />
+                                    <div className="flex gap-2">
+                                        <select className="bg-slate-950 border border-slate-800 rounded px-2 py-1 text-xs text-slate-300 outline-none flex-1" value={newStoryDay} onChange={(e) => setNewStoryDay(Number(e.target.value))}>
+                                            {DAYS.map((d, i) => <option key={d} value={i}>{d}</option>)}
+                                        </select>
+                                        <div className="flex items-center gap-1 bg-slate-950 border border-slate-800 rounded px-1">
+                                            <input type="number" min="0" max="23" className="w-8 bg-transparent text-center text-xs outline-none" value={newStoryHour} onChange={(e) => setNewStoryHour(Number(e.target.value))} />
+                                            <span className="text-slate-500">:</span>
+                                            <input type="number" min="0" max="59" className="w-8 bg-transparent text-center text-xs outline-none" value={newStoryMinute} onChange={(e) => setNewStoryMinute(Number(e.target.value))} />
+                                        </div>
+                                    </div>
+                                    <textarea
+                                        className="w-full h-16 bg-slate-950 border border-slate-800 rounded px-2 py-1 text-xs text-slate-300 outline-none resize-none"
+                                        placeholder="Details..."
+                                        value={newStoryDesc}
+                                        onChange={(e) => setNewStoryDesc(e.target.value)}
+                                    />
+                                    <div className="flex gap-2 justify-end">
+                                        <button onClick={() => setIsCreatingStory(false)} className="text-xs text-slate-500 hover:text-white transition-colors">Cancel</button>
+                                        <button onClick={handleAddStory} className="text-xs bg-red-500 text-white px-3 py-1 rounded hover:bg-red-400 transition-all shadow-lg shadow-red-500/20">Save Story</button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Actions */}
+                        <div className="w-full md:w-auto flex-none flex flex-col justify-end pt-5">
+                            <Button size="sm" variant="danger" className="whitespace-nowrap opacity-80 hover:opacity-100" onClick={() => {
+                                if (confirm("Are you sure? This will delete ALL entries.")) clearSchedule();
+                            }}>
+                                Clear Schedule
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             {/* Label Modal (Viewer vs Editor) */}
             {editingLabel && (
