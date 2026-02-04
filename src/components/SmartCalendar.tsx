@@ -297,89 +297,85 @@ export function SmartCalendar() {
             {/* --- TOP PANEL: LABELS --- */}
             <div
                 className={clsx(
-                    "flex-none bg-slate-950/95 backdrop-blur-xl border-b border-slate-800 transition-all duration-300 ease-in-out overflow-hidden z-40",
-                    !isLocked ? "max-h-[160px] opacity-100 py-2" : "max-h-0 opacity-0 py-0"
+                    "flex-none bg-slate-950/95 backdrop-blur-xl border-b border-slate-800 transition-all duration-300 ease-in-out z-40",
+                    !isLocked ? "h-auto opacity-100 py-1" : "max-h-0 opacity-0 py-0 overflow-hidden"
                 )}
             >
-                <div className="container mx-auto px-4 overflow-y-auto max-h-[140px] custom-scrollbar">
-                    <div className="flex flex-col md:flex-row gap-4 items-start">
+                <div className="container mx-auto px-2">
+                    <div className="flex flex-col md:flex-row gap-2 items-center">
                         {/* Label Creator */}
-                        <div className="w-full md:w-64 flex-none space-y-3">
-                            <label className="block text-xs font-bold text-slate-500 uppercase">Manage Labels</label>
-                            <div className="flex bg-slate-900 border border-slate-800 rounded-lg p-1.5 focus-within:border-emerald-500/50 transition-colors w-full shadow-inner">
+                        <div className="flex-none flex items-center gap-2">
+                            <div className="flex bg-slate-900 border border-slate-800 rounded p-1 w-48 shadow-inner items-center">
+                                <span className="w-3 h-3 rounded ml-1 mr-1 shadow-sm" style={{ backgroundColor: newLabelColor }} />
                                 <input
                                     type="text"
-                                    placeholder="New Label..."
-                                    className="flex-1 bg-transparent border-none text-sm outline-none px-2 text-slate-200 placeholder:text-slate-600 min-w-0"
+                                    placeholder="New Label"
+                                    className="flex-1 bg-transparent border-none text-[10px] outline-none px-1 text-slate-200 placeholder:text-slate-600 min-w-0"
                                     value={newLabelName}
                                     onChange={(e) => setNewLabelName(e.target.value)}
                                     onKeyDown={(e) => e.key === 'Enter' && handleAddLabel()}
                                 />
-                                <div className="flex items-center gap-2 pr-1">
-                                    <div className="relative group cursor-pointer w-6 h-6 rounded-md overflow-hidden ring-1 ring-slate-700 hover:ring-slate-500 transition-all">
-                                        <div className="absolute inset-0 w-full h-full" style={{ backgroundColor: newLabelColor }} />
-                                        <input type="color" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" value={newLabelColor} onChange={(e) => setNewLabelColor(e.target.value)} title="Choose Color" />
-                                    </div>
-                                    <button onClick={handleAddLabel} className="bg-slate-800 hover:bg-emerald-600 text-white p-1 rounded-md transition-all duration-300 shadow active:scale-95">
-                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
-                                    </button>
-                                </div>
+                                <input type="color" className="w-0 h-0 opacity-0 absolute" id="colorPicker" value={newLabelColor} onChange={(e) => setNewLabelColor(e.target.value)} />
+                                <label htmlFor="colorPicker" className="cursor-pointer text-slate-500 hover:text-white px-1">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-3 h-3"><path strokeLinecap="round" strokeLinejoin="round" d="M9.53 16.122a3 3 0 0 0-5.78 1.128 2.25 2.25 0 0 1-2.4 2.245 4.5 4.5 0 0 0 8.4-2.245c0-.399-.078-.78-.22-1.128Zm0 0a15.998 15.998 0 0 0 3.388-1.62m-5.048 4.025a3 3 0 0 1-4.24-4.24m4.24 4.24.004-.004m-5.895-3.085a15.999 15.999 0 0 1-2.454.49" /></svg>
+                                </label>
+                                <button onClick={handleAddLabel} className="bg-emerald-600/20 hover:bg-emerald-600 text-emerald-500 hover:text-white p-0.5 rounded transition-all">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-3 h-3"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+                                </button>
                             </div>
                         </div>
 
                         {/* Label List */}
-                        <div className="flex-1 w-full">
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-3">Available Labels</label>
-                            <div className="flex flex-wrap gap-2">
-                                {labels.map(lbl => (
-                                    <div
-                                        key={lbl.id}
-                                        onClick={() => setSelectedBrush(lbl.id)}
-                                        className={clsx(
-                                            "px-3 py-1.5 rounded-md text-xs font-medium border flex items-center gap-2 transition-all cursor-pointer group select-none hover:bg-slate-800/50",
-                                            selectedBrush === lbl.id ? "ring-1 ring-offset-1 ring-offset-slate-950 scale-105" : "opacity-90 hover:opacity-100"
-                                        )}
-                                        style={{
-                                            backgroundColor: `${lbl.color}15`,
-                                            borderColor: lbl.color,
-                                            color: lbl.color
-                                        }}
+                        <div className="flex-1 flex flex-wrap gap-1.5 items-center overflow-x-auto custom-scrollbar pb-1 md:pb-0">
+                            {labels.map(lbl => (
+                                <div
+                                    key={lbl.id}
+                                    onClick={() => setSelectedBrush(lbl.id)}
+                                    className={clsx(
+                                        "px-2 py-0.5 rounded text-[10px] font-medium border flex items-center gap-1.5 transition-all cursor-pointer group select-none hover:bg-slate-800/50 whitespace-nowrap",
+                                        selectedBrush === lbl.id ? "ring-1 ring-offset-1 ring-offset-slate-950 scale-105" : "opacity-80 hover:opacity-100"
+                                    )}
+                                    style={{
+                                        backgroundColor: `${lbl.color}10`,
+                                        borderColor: lbl.color,
+                                        color: lbl.color
+                                    }}
+                                >
+                                    <div className="w-1.5 h-1.5 rounded-full shadow-[0_0_5px_currentColor]" style={{ backgroundColor: lbl.color }} />
+                                    <span className="max-w-[80px] truncate">{lbl.name}</span>
+
+                                    <button
+                                        className="opacity-0 group-hover:opacity-100 hover:text-white transition-opacity px-0.5"
+                                        onClick={(e) => { e.stopPropagation(); setEditingLabelId(lbl.id); setActiveTab('global'); }}
+                                        title="Edit Notes"
                                     >
-                                        <div className="w-2 h-2 rounded-full shadow-[0_0_8px_currentColor]" style={{ backgroundColor: lbl.color }} />
-                                        <span className="truncate max-w-[100px]">{lbl.name}</span>
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-2.5 h-2.5"><path d="m2.695 14.762-1.262 3.155a.5.5 0 0 0 .65.65l3.155-1.262a4 4 0 0 0 1.343-.886L17.5 5.501a2.121 2.121 0 0 0-3-3L3.58 13.419a4 4 0 0 0-.885 1.343Z" /></svg>
+                                    </button>
 
-                                        <button
-                                            className="opacity-0 group-hover:opacity-100 hover:text-white transition-opacity p-1"
-                                            onClick={(e) => { e.stopPropagation(); setEditingLabelId(lbl.id); setActiveTab('global'); }}
-                                            title="Edit Notes"
-                                        >
-                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3"><path d="m2.695 14.762-1.262 3.155a.5.5 0 0 0 .65.65l3.155-1.262a4 4 0 0 0 1.343-.886L17.5 5.501a2.121 2.121 0 0 0-3-3L3.58 13.419a4 4 0 0 0-.885 1.343Z" /></svg>
-                                        </button>
+                                    <span
+                                        className="opacity-0 group-hover:opacity-100 hover:text-red-400 transition-colors px-0.5 cursor-pointer"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            // ... existing delete logic ...
+                                            const hasGlobalNotes = lbl.notes && lbl.notes.trim().length > 0;
+                                            const hasTabContent = Object.values(lbl.customTabs || {}).some(tab => tab.content && tab.content.trim().length > 0);
+                                            const hasInstanceNotes = Object.entries(schedule).some(([key, labelId]) => {
+                                                if (labelId !== lbl.id) return false;
+                                                return instanceNotes[key] && instanceNotes[key].trim().length > 0;
+                                            });
 
-                                        <span
-                                            className="opacity-0 group-hover:opacity-100 hover:text-red-400 transition-colors p-1"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                const hasGlobalNotes = lbl.notes && lbl.notes.trim().length > 0;
-                                                const hasTabContent = Object.values(lbl.customTabs || {}).some(tab => tab.content && tab.content.trim().length > 0);
-                                                const hasInstanceNotes = Object.entries(schedule).some(([key, labelId]) => {
-                                                    if (labelId !== lbl.id) return false;
-                                                    return instanceNotes[key] && instanceNotes[key].trim().length > 0;
+                                            if (hasGlobalNotes || hasTabContent || hasInstanceNotes) {
+                                                setConfirmModal({
+                                                    message: "Delete label?",
+                                                    onConfirm: () => removeLabel(lbl.id)
                                                 });
-
-                                                if (hasGlobalNotes || hasTabContent || hasInstanceNotes) {
-                                                    setConfirmModal({
-                                                        message: "¿Deseas eliminar la etiqueta?",
-                                                        onConfirm: () => removeLabel(lbl.id)
-                                                    });
-                                                } else {
-                                                    removeLabel(lbl.id);
-                                                }
-                                            }}
-                                        >×</span>
-                                    </div>
-                                ))}
-                            </div>
+                                            } else {
+                                                removeLabel(lbl.id);
+                                            }
+                                        }}
+                                    >×</span>
+                                </div>
+                            ))}
                         </div>
                     </div>
                 </div>
@@ -559,61 +555,49 @@ export function SmartCalendar() {
                 {/* Wrapper for smooth height scaling */}
                 <div className={clsx(
                     "overflow-hidden transition-all duration-300 ease-in-out",
-                    !isLocked ? "max-h-[35vh] opacity-100" : "max-h-0 opacity-0"
+                    !isLocked ? "h-auto opacity-100" : "max-h-0 opacity-0"
                 )}>
-                    <div className="container mx-auto px-4 flex flex-col md:flex-row gap-4 items-start justify-center h-full overflow-y-auto custom-scrollbar">
+                    <div className="container mx-auto px-4 flex flex-col md:flex-row gap-4 items-center justify-center h-full pb-2">
 
-                        {/* Time Config */}
-                        <div className="w-full md:w-auto flex-none space-y-2 min-w-[200px]">
-                            <label className="block text-xs font-bold text-slate-500 uppercase flex items-center gap-2">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-slate-400"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
-                                Time Settings
-                            </label>
-                            <div className="bg-slate-900 border border-slate-800 rounded-lg p-2 space-y-2">
-                                <div className="flex items-center gap-2 justify-between">
-                                    <span className="text-sm text-slate-300">Start / End</span>
-                                    <div className="flex items-center gap-1 bg-slate-950 border border-slate-800 rounded px-1">
-                                        <input type="number" min="0" max="23" className="w-8 bg-transparent text-center text-sm outline-none text-emerald-400" value={config.startHour} onChange={(e) => handleConfigChange('startHour', e.target.value)} />
-                                        <span className="text-slate-600">-</span>
-                                        <input type="number" min="1" max="24" className="w-8 bg-transparent text-center text-sm outline-none text-emerald-400" value={config.endHour} onChange={(e) => handleConfigChange('endHour', e.target.value)} />
-                                    </div>
+                        {/* Time Config - Single Row */}
+                        <div className="flex-none flex items-center gap-4 bg-slate-900 border border-slate-800 rounded p-1.5 shadow-inner">
+                            <div className="flex items-center gap-2">
+                                <span className="text-[10px] font-bold text-slate-500 uppercase">Range</span>
+                                <div className="flex items-center gap-1 bg-slate-950 border border-slate-800 rounded px-1">
+                                    <input type="number" min="0" max="23" className="w-5 bg-transparent text-center text-xs outline-none text-emerald-400" value={config.startHour} onChange={(e) => handleConfigChange('startHour', e.target.value)} />
+                                    <span className="text-slate-600 text-xs">-</span>
+                                    <input type="number" min="1" max="24" className="w-5 bg-transparent text-center text-xs outline-none text-emerald-400" value={config.endHour} onChange={(e) => handleConfigChange('endHour', e.target.value)} />
                                 </div>
-                                <div className="flex items-center gap-2 justify-between">
-                                    <span className="text-sm text-slate-300">Interval</span>
-                                    <select
-                                        className="bg-slate-950 border border-slate-800 rounded px-2 py-1 text-sm text-emerald-400 outline-none cursor-pointer"
-                                        value={config.stepMinutes}
-                                        onChange={(e) => handleConfigChange('stepMinutes', e.target.value)}
-                                    >
-                                        <option value="10">10m</option>
-                                        <option value="15">15m</option>
-                                        <option value="20">20m</option>
-                                        <option value="30">30m</option>
-                                        <option value="60">60m</option>
-                                    </select>
-                                </div>
+                            </div>
+                            <div className="w-px h-4 bg-slate-800" />
+                            <div className="flex items-center gap-2">
+                                <span className="text-[10px] font-bold text-slate-500 uppercase">Step</span>
+                                <select
+                                    className="bg-slate-950 border border-slate-800 rounded px-1 py-0.5 text-xs text-emerald-400 outline-none cursor-pointer"
+                                    value={config.stepMinutes}
+                                    onChange={(e) => handleConfigChange('stepMinutes', e.target.value)}
+                                >
+                                    <option value="10">10m</option>
+                                    <option value="15">15m</option>
+                                    <option value="20">20m</option>
+                                    <option value="30">30m</option>
+                                    <option value="60">60m</option>
+                                </select>
                             </div>
                         </div>
 
-                        {/* Stories Management */}
-                        <div className="w-full md:w-96 flex-none space-y-3">
-                            <div className="flex justify-between items-center">
-                                <label className="block text-xs font-bold text-slate-500 uppercase flex items-center gap-2">
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-red-400"><path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" /></svg>
-                                    Stories & Reminders
-                                </label>
-                            </div>
-
+                        {/* Stories Management - Compact Inline */}
+                        <div className="flex-none flex items-center gap-2">
                             {!isCreatingStory ? (
                                 <button
                                     onClick={() => setIsCreatingStory(true)}
-                                    className="w-full flex items-center justify-center gap-2 bg-slate-900 hover:bg-red-500/10 border border-slate-800 hover:border-red-500/50 text-slate-400 hover:text-red-400 p-2 rounded-lg border-dashed transition-all group"
+                                    className="flex items-center gap-2 bg-slate-900 hover:bg-red-500/10 border border-slate-800 hover:border-red-500/50 text-slate-400 hover:text-red-400 px-3 py-1.5 rounded border-dashed transition-all group text-xs"
                                 >
-                                    <span className="group-hover:scale-110 transition-transform text-lg">+</span>
-                                    <span>Add New Story</span>
+                                    <span className="group-hover:scale-110 transition-transform font-bold">+</span>
+                                    <span>Add Story</span>
                                 </button>
                             ) : (
-                                <div className="space-y-2 bg-slate-900 p-2 rounded-lg border border-slate-800 animate-in fade-in zoom-in-95 shadow-lg">
+                                <div className="flex items-center gap-2 bg-slate-900 p-1 rounded border border-slate-800 animate-in fade-in zoom-in-95 shadow-lg">
                                     <input
                                         type="text"
                                         placeholder="Title (e.g., Meeting)"
@@ -639,19 +623,23 @@ export function SmartCalendar() {
                                         onChange={(e) => setNewStoryDesc(e.target.value)}
                                     />
                                     <div className="flex gap-2 justify-end">
-                                        <button onClick={() => setIsCreatingStory(false)} className="text-xs text-slate-500 hover:text-white transition-colors">Cancel</button>
-                                        <button onClick={handleAddStory} className="text-xs bg-red-500 text-white px-3 py-1 rounded hover:bg-red-400 transition-all shadow-lg shadow-red-500/20">Save Story</button>
+                                        <button onClick={() => setIsCreatingStory(false)} className="bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white p-1 rounded transition-colors">
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
+                                        </button>
+                                        <button onClick={handleAddStory} className="bg-red-500/20 hover:bg-red-500 text-red-400 hover:text-white p-1 rounded transition-all">
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
+                                        </button>
                                     </div>
                                 </div>
                             )}
                         </div>
 
                         {/* Actions */}
-                        <div className="w-full md:w-auto flex-none flex flex-col justify-end pt-5">
-                            <Button size="sm" variant="danger" className="whitespace-nowrap opacity-80 hover:opacity-100" onClick={() => {
-                                if (confirm("Are you sure? This will delete ALL entries.")) clearSchedule();
+                        <div className="flex-none">
+                            <Button size="sm" variant="danger" className="py-1 px-3 text-xs opacity-60 hover:opacity-100" onClick={() => {
+                                if (confirm("Delete ALL?")) clearSchedule();
                             }}>
-                                Clear Schedule
+                                Clear
                             </Button>
                         </div>
                     </div>
