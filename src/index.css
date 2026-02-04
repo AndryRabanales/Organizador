@@ -1,0 +1,33 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    @apply bg-slate-950 text-slate-200 antialiased font-sans;
+  }
+}
+
+/* Custom Glassmorphism */
+.glass-panel {
+  @apply bg-slate-900/60 backdrop-blur-xl border border-slate-700/50 shadow-xl rounded-2xl;
+}
+
+.bio-bar-container {
+  @apply h-4 w-full bg-slate-800/80 rounded-full overflow-hidden border border-slate-700;
+}
+
+.bio-bar-fill {
+  @apply h-full transition-all duration-500 ease-out;
+}
+
+/* Hide Scrollbar but allow scrolling */
+.custom-scrollbar {
+  -ms-overflow-style: none;
+  /* IE and Edge */
+  scrollbar-width: none;
+  /* Firefox */
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  display: none;
+  /* Chrome, Safari and Opera */
+}
