@@ -117,13 +117,14 @@ export const useCalendarStore = create<CalendarState>()(
             dailyNotes: '',
             labels: DEFAULT_LABELS,
             stories: [],
-            isLocked: false,
+            isLocked: true, // Default to true (Viewing Mode)
             isLoading: true, // Start as true
 
             fetchData: async () => {
                 set({ isLoading: true });
                 try {
                     console.log("Fetching from Supabase...");
+                    const { data: configData } = await supabase.from('calendar_config').select('*').single();
                     const { data: labelsData, error: lError } = await supabase.from('labels').select('*');
                     const { data: scheduleData } = await supabase.from('schedule_entries').select('*');
                     const { data: notesData } = await supabase.from('instance_notes').select('*');
@@ -131,9 +132,19 @@ export const useCalendarStore = create<CalendarState>()(
 
                     if (lError) throw lError;
 
+                    // Map Config
+                    let newConfig = get().config;
+                    if (configData) {
+                        newConfig = {
+                            startHour: configData.start_hour,
+                            endHour: configData.end_hour,
+                            stepMinutes: configData.step_minutes
+                        };
+                    }
+
                     // Map DB Labels to State Labels
                     const newLabels = (labelsData && labelsData.length > 0) ? labelsData.map((l: any) => ({
-                        id: l.id, // UUID from DB
+                        id: l.id,
                         name: l.name,
                         color: l.color,
                         notes: l.notes || '',
@@ -142,6 +153,28 @@ export const useCalendarStore = create<CalendarState>()(
                         trashedTabs: l.trashed_tabs || [],
                         customTabs: l.custom_tabs || {}
                     })) : DEFAULT_LABELS;
+
+                    // If we have default labels but no DB labels, seed them!
+                    // Check if this is a fresh user (no labels in DB)
+                    if ((!labelsData || labelsData.length === 0) && newLabels === DEFAULT_LABELS) {
+                        const userId = (await supabase.auth.getUser()).data.user?.id;
+                        if (userId) {
+                            // Seed defaults async
+                            DEFAULT_LABELS.forEach(l => {
+                                supabase.from('labels').insert({
+                                    id: l.id,
+                                    user_id: userId,
+                                    name: l.name,
+                                    color: l.color,
+                                    notes: '',
+                                    daily_notes: '',
+                                    open_tabs: l.openTabs,
+                                    trashed_tabs: l.trashedTabs,
+                                    custom_tabs: l.customTabs
+                                }).then();
+                            });
+                        }
+                    }
 
                     // Map Schedule
                     const newSchedule: Record<string, string> = {};
@@ -168,11 +201,13 @@ export const useCalendarStore = create<CalendarState>()(
                     })) || [];
 
                     set({
+                        config: newConfig,
                         labels: newLabels,
                         schedule: newSchedule,
                         instanceNotes: newInstanceNotes,
                         stories: newStories,
-                        isLoading: false
+                        isLoading: false,
+                        isLocked: true // Force viewing mode on load
                     });
                     console.log("Data fetched successfully");
 
@@ -183,9 +218,26 @@ export const useCalendarStore = create<CalendarState>()(
                 }
             },
 
-            setConfig: (newConfig) => set((state) => ({
-                config: { ...state.config, ...newConfig }
-            })),
+            setConfig: async (newConfig) => {
+                set((state) => ({
+                    config: { ...state.config, ...newConfig }
+                }));
+                // Auto-save to DB
+                const userId = (await supabase.auth.getUser()).data.user?.id;
+                const fullConfig = get().config; // Get updated config from state (or construct it)
+                const merged = { ...fullConfig, ...newConfig };
+
+                if (userId) {
+                    supabase.from('calendar_config').upsert({
+                        user_id: userId,
+                        start_hour: merged.startHour,
+                        end_hour: merged.endHour,
+                        step_minutes: merged.stepMinutes
+                    }, { onConflict: 'user_id' }).then(({ error }) => {
+                        if (error) console.error("Config Save Error:", error);
+                    });
+                }
+            },
 
             setCell: async (dayIndex, slotIndex, labelId) => {
                 const { isLocked, schedule, instanceNotes } = get();
