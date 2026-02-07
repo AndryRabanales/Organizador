@@ -19,7 +19,9 @@ export function AuthScreen() {
                         access_type: 'offline',
                         prompt: 'consent',
                     },
-                    redirectTo: window.location.origin, // Ensure it redirects back to the app
+                    redirectTo: import.meta.env.PROD
+                        ? 'https://gympartner-production.up.railway.app'
+                        : window.location.origin,
                 },
             });
 
