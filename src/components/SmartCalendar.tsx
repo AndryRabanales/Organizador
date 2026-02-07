@@ -394,29 +394,32 @@ export function SmartCalendar() {
             {/* --- MIDDLE: CALENDAR --- */}
             <main className="flex-1 relative overflow-hidden flex flex-col min-h-0">
                 {/* Header inside Main (Always Visible) */}
-                <div className="flex-none p-4 flex justify-between items-center z-30 bg-gradient-to-b from-slate-950/50 to-transparent">
-                    <div className="flex items-center gap-2">
-                        <h1 className="text-xl font-black text-white tracking-tighter drop-shadow-lg">
-                            <span className="text-emerald-500">{t('appTitle')}</span> {t('planner')}
-                        </h1>
+                {/* Header inside Main (Hidden in Config Mode) */}
+                {isLocked && (
+                    <div className="flex-none p-4 flex justify-between items-center z-30 bg-gradient-to-b from-slate-950/50 to-transparent">
+                        <div className="flex items-center gap-2">
+                            <h1 className="text-xl font-black text-white tracking-tighter drop-shadow-lg">
+                                <span className="text-emerald-500">{t('appTitle')}</span> {t('planner')}
+                            </h1>
 
 
-                    </div>
-                    <div className="flex items-center gap-4">
-                        <div className="px-4 py-1.5 rounded-xl bg-slate-900/50 border border-slate-800/50 font-mono text-emerald-400 font-bold text-sm backdrop-blur">
-                            {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                         </div>
-                        <button
-                            onClick={handleLogout}
-                            className="p-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 transition-all hover:scale-105 active:scale-95"
-                            title={t('logout')}
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-                                <path fillRule="evenodd" d="M16.5 3.75a1.5 1.5 0 0 1 1.5 1.5v13.5a1.5 1.5 0 0 1-1.5 1.5h-6a1.5 1.5 0 0 1-1.5-1.5V15a.75.75 0 0 0-1.5 0v3.75a3 3 0 0 0 3 3h6a3 3 0 0 0 3-3V5.25a3 3 0 0 0-3-3h-6a3 3 0 0 0-3 3V9A.75.75 0 1 0 9 9V5.25a1.5 1.5 0 0 1 1.5-1.5h6ZM5.78 8.47a.75.75 0 0 0-1.06 0l-3 3a.75.75 0 0 0 0 1.06l3 3a.75.75 0 0 0 1.06-1.06l-1.72-1.72H15a.75.75 0 0 0 0-1.5H4.06l1.72-1.72a.75.75 0 0 0 0-1.06Z" clipRule="evenodd" />
-                            </svg>
-                        </button>
+                        <div className="flex items-center gap-4">
+                            <div className="px-4 py-1.5 rounded-xl bg-slate-900/50 border border-slate-800/50 font-mono text-emerald-400 font-bold text-sm backdrop-blur">
+                                {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                            </div>
+                            <button
+                                onClick={handleLogout}
+                                className="p-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 transition-all hover:scale-105 active:scale-95"
+                                title={t('logout')}
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+                                    <path fillRule="evenodd" d="M16.5 3.75a1.5 1.5 0 0 1 1.5 1.5v13.5a1.5 1.5 0 0 1-1.5 1.5h-6a1.5 1.5 0 0 1-1.5-1.5V15a.75.75 0 0 0-1.5 0v3.75a3 3 0 0 0 3 3h6a3 3 0 0 0 3-3V5.25a3 3 0 0 0-3-3h-6a3 3 0 0 0-3 3V9A.75.75 0 1 0 9 9V5.25a1.5 1.5 0 0 1 1.5-1.5h6ZM5.78 8.47a.75.75 0 0 0-1.06 0l-3 3a.75.75 0 0 0 0 1.06l3 3a.75.75 0 0 0 1.06-1.06l-1.72-1.72H15a.75.75 0 0 0 0-1.5H4.06l1.72-1.72a.75.75 0 0 0 0-1.06Z" clipRule="evenodd" />
+                                </svg>
+                            </button>
+                        </div>
                     </div>
-                </div>
+                )}
 
                 {/* Grid */}
                 <div ref={containerRef} className="flex-1 overflow-auto p-4 pt-0 custom-scrollbar">
