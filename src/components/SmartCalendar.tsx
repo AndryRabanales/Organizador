@@ -128,6 +128,8 @@ export function SmartCalendar() {
     };
 
     const handleMouseUp = () => {
+        if (confirmModal) return; // Prevent double-trigger if modal is open
+
         if (isLocked) {
             setSelectionStart(null);
             setSelectionEnd(null);
@@ -214,7 +216,7 @@ export function SmartCalendar() {
     useEffect(() => {
         window.addEventListener('mouseup', handleMouseUp);
         return () => window.removeEventListener('mouseup', handleMouseUp);
-    }, [selectionStart, selectionEnd, selectedBrush, schedule, isLocked, instanceNotes]);
+    }, [selectionStart, selectionEnd, selectedBrush, schedule, isLocked, instanceNotes, confirmModal]);
 
 
     // --- Calculations ---
@@ -355,7 +357,7 @@ export function SmartCalendar() {
                                     <button
                                         className="opacity-0 group-hover:opacity-100 hover:text-white transition-opacity px-0.5"
                                         onClick={(e) => { e.stopPropagation(); setEditingLabelId(lbl.id); setActiveTab('global'); }}
-                                        title="Edit Notes"
+                                        title={t('notes')}
                                     >
                                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-2.5 h-2.5"><path d="m2.695 14.762-1.262 3.155a.5.5 0 0 0 .65.65l3.155-1.262a4 4 0 0 0 1.343-.886L17.5 5.501a2.121 2.121 0 0 0-3-3L3.58 13.419a4 4 0 0 0-.885 1.343Z" /></svg>
                                     </button>
@@ -374,7 +376,7 @@ export function SmartCalendar() {
 
                                             if (hasGlobalNotes || hasTabContent || hasInstanceNotes) {
                                                 setConfirmModal({
-                                                    message: "Delete label?",
+                                                    message: t('deleteLabel'),
                                                     onConfirm: () => removeLabel(lbl.id)
                                                 });
                                             } else {
@@ -407,7 +409,7 @@ export function SmartCalendar() {
                         <button
                             onClick={handleLogout}
                             className="p-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 transition-all hover:scale-105 active:scale-95"
-                            title="Cerrar Sesión"
+                            title={t('logout')}
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
                                 <path fillRule="evenodd" d="M16.5 3.75a1.5 1.5 0 0 1 1.5 1.5v13.5a1.5 1.5 0 0 1-1.5 1.5h-6a1.5 1.5 0 0 1-1.5-1.5V15a.75.75 0 0 0-1.5 0v3.75a3 3 0 0 0 3 3h6a3 3 0 0 0 3-3V5.25a3 3 0 0 0-3-3h-6a3 3 0 0 0-3 3V9A.75.75 0 1 0 9 9V5.25a1.5 1.5 0 0 1 1.5-1.5h6ZM5.78 8.47a.75.75 0 0 0-1.06 0l-3 3a.75.75 0 0 0 0 1.06l3 3a.75.75 0 0 0 1.06-1.06l-1.72-1.72H15a.75.75 0 0 0 0-1.5H4.06l1.72-1.72a.75.75 0 0 0 0-1.06Z" clipRule="evenodd" />
@@ -490,7 +492,7 @@ export function SmartCalendar() {
                                                                         onClick={(e) => { e.stopPropagation(); setEditingLabelId(labelObj.id); setEditingCellKey(cellKey); setActiveTab('instance'); }}
                                                                         onMouseDown={(e) => e.stopPropagation()}
                                                                         className="mr-1 p-0.5 rounded hover:bg-black/20 text-slate-400 hover:text-white transition-all opacity-0 group-hover:opacity-100"
-                                                                        title="Edit Notes"
+                                                                        title={t('notes')}
                                                                     >
                                                                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3">
                                                                             <path d="m2.695 14.762-1.262 3.155a.5.5 0 0 0 .65.65l3.155-1.262a4 4 0 0 0 1.343-.886L17.5 5.501a2.121 2.121 0 0 0-3-3L3.58 13.419a4 4 0 0 0-.885 1.343Z" />
@@ -671,17 +673,16 @@ export function SmartCalendar() {
                                         <label className="text-[10px] uppercase font-bold text-slate-500">{t('title')}</label>
                                         <input
                                             type="text"
-                                            placeholder="Meeting, Workout, etc."
+                                            placeholder={t('storyPlaceholder')}
                                             className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none focus:border-blue-500 transition-colors shadow-inner"
                                             value={newStoryTitle}
                                             onChange={(e) => setNewStoryTitle(e.target.value)}
-                                            autoFocus
                                         />
                                     </div>
 
                                     <div className="grid grid-cols-2 gap-3">
                                         <div className="space-y-1">
-                                            <label className="text-[10px] uppercase font-bold text-slate-500">Day</label>
+                                            <label className="text-[10px] uppercase font-bold text-slate-500">{t('day')}</label>
                                             <select
                                                 className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-2 text-xs text-slate-300 outline-none cursor-pointer focus:border-blue-500 transition-colors shadow-inner"
                                                 value={newStoryDay}
@@ -691,7 +692,7 @@ export function SmartCalendar() {
                                             </select>
                                         </div>
                                         <div className="space-y-1">
-                                            <label className="text-[10px] uppercase font-bold text-slate-500">Time</label>
+                                            <label className="text-[10px] uppercase font-bold text-slate-500">{t('time')}</label>
                                             <div className="flex items-center gap-1 bg-slate-950 border border-slate-800 rounded-lg px-2 py-1.5 shadow-inner focus-within:border-blue-500 transition-colors">
                                                 <input type="number" min="0" max="23" className="w-full bg-transparent text-center text-sm outline-none" value={newStoryHour} onChange={(e) => setNewStoryHour(Number(e.target.value))} />
                                                 <span className="text-slate-500 font-bold">:</span>
@@ -704,7 +705,7 @@ export function SmartCalendar() {
                                         <label className="text-[10px] uppercase font-bold text-slate-500">{t('description')}</label>
                                         <textarea
                                             className="w-full h-20 bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-300 outline-none resize-none focus:border-blue-500 transition-colors shadow-inner scrollbar-thin scrollbar-thumb-slate-700"
-                                            placeholder="Add details here..."
+                                            placeholder={t('storyDescPlaceholder')}
                                             value={newStoryDesc}
                                             onChange={(e) => setNewStoryDesc(e.target.value)}
                                         />

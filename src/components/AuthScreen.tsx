@@ -58,7 +58,7 @@ export function AuthScreen() {
                         <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-emerald-200">{t('appTitle')}</span> {t('planner')}
                     </h1>
                     <p className="text-slate-400 text-sm font-medium tracking-wide font-mono">
-                        Professional Organization Suite
+                        {t('subtitle')}
                     </p>
                 </div>
 
@@ -88,7 +88,7 @@ export function AuthScreen() {
                         </svg>
                     )}
 
-                    {isLoading ? "Connecting..." : "Continue with Google"}
+                    {isLoading ? t('connecting') : t('continueGoogle')}
                 </button>
 
                 {/* Secure Badge */}
@@ -96,7 +96,7 @@ export function AuthScreen() {
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3">
                         <path fillRule="evenodd" d="M10 1a4.5 4.5 0 0 0-4.5 4.5V9H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2h-.5V5.5A4.5 4.5 0 0 0 10 1Zm3 8V5.5a3 3 0 1 0-6 0V9h6Z" clipRule="evenodd" />
                     </svg>
-                    <span>Secure Encryption via Supabase</span>
+                    <span>{t('secureBadge')}</span>
                 </div>
 
                 {error && (
@@ -109,7 +109,7 @@ export function AuthScreen() {
             {/* Footer */}
             <div className="absolute bottom-6 w-full text-center">
                 <p className="text-[10px] text-slate-600 uppercase tracking-widest">
-                    &copy; 2026 BIO Organizer System
+                    &copy; 2026 {t('copyright')}
                 </p>
             </div>
         </div>

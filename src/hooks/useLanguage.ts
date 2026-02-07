@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 type Language = 'en' | 'es';
 
@@ -57,7 +57,17 @@ const LOCALE_DATA = {
         writeNotes: 'Write your notes here...',
         globalConfig: 'Global Config',
         thisBlock: 'This Block',
-        thisSpecificBlock: 'This Specific Block'
+        thisSpecificBlock: 'This Specific Block',
+        logout: 'Logout',
+        deleteLabel: 'Delete Label?',
+        day: 'Day',
+        storyPlaceholder: 'Meeting, Workout, etc.',
+        storyDescPlaceholder: 'Add details here...',
+        subtitle: 'Professional Organization Suite',
+        continueGoogle: 'Continue with Google',
+        connecting: 'Connecting...',
+        secureBadge: 'Secure Encryption via Supabase',
+        copyright: 'BIO Organizer System'
     },
     es: {
         // Days
@@ -113,17 +123,26 @@ const LOCALE_DATA = {
         writeNotes: 'Escribe tus notas aquí...',
         globalConfig: 'Configuración Global',
         thisBlock: 'Este Bloque',
-        thisSpecificBlock: 'Este Bloque Específico'
+        thisSpecificBlock: 'Este Bloque Específico',
+        logout: 'Cerrar Sesión',
+        deleteLabel: '¿Borrar Etiqueta?',
+        day: 'Día',
+        storyPlaceholder: 'Reunión, Entreno, etc.',
+        storyDescPlaceholder: 'Añade detalles aquí...',
+        subtitle: 'Suite de Organización Profesional',
+        continueGoogle: 'Continuar con Google',
+        connecting: 'Conectando...',
+        secureBadge: 'Encriptación Segura vía Supabase',
+        copyright: 'Sistema Organizador BIO'
     }
 };
 
 export function useLanguage() {
-    // Default to 'es' if browser starts with 'es', otherwise 'en'
-    const [language, setLanguage] = useState<Language>(() => {
-        const browserLang = navigator.language.split('-')[0];
-        return browserLang === 'es' ? 'es' : 'en';
-    });
+    // Default to 'es'
+    const [language, setLanguage] = useState<Language>('es');
 
+    // Removed auto-detection to enforce Spanish
+    /*
     useEffect(() => {
         const handler = () => {
             const browserLang = navigator.language.split('-')[0];
@@ -132,6 +151,7 @@ export function useLanguage() {
         window.addEventListener('languagechange', handler);
         return () => window.removeEventListener('languagechange', handler);
     }, []);
+    */
 
     const t = (key: keyof typeof LOCALE_DATA['en']): string => {
         const value = LOCALE_DATA[language][key];
