@@ -128,8 +128,6 @@ export function SmartCalendar() {
     };
 
     const handleMouseUp = () => {
-        if (confirmModal) return; // Prevent double-trigger if modal is open
-
         if (isLocked) {
             setSelectionStart(null);
             setSelectionEnd(null);
@@ -216,7 +214,7 @@ export function SmartCalendar() {
     useEffect(() => {
         window.addEventListener('mouseup', handleMouseUp);
         return () => window.removeEventListener('mouseup', handleMouseUp);
-    }, [selectionStart, selectionEnd, selectedBrush, schedule, isLocked, instanceNotes, confirmModal]);
+    }, [selectionStart, selectionEnd, selectedBrush, schedule, isLocked, instanceNotes]);
 
 
     // --- Calculations ---
@@ -312,77 +310,81 @@ export function SmartCalendar() {
                 )}
             >
                 <div className="container mx-auto px-2">
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                        {/* 1. Label Creator (Grid Item) */}
-                        <div className="flex bg-slate-900 border border-slate-800 rounded p-1 shadow-inner items-center h-full min-h-[32px] w-full">
-                            <span className="flex-none w-3 h-3 rounded ml-1 mr-1 shadow-sm" style={{ backgroundColor: newLabelColor }} />
-                            <input
-                                type="text"
-                                placeholder={t('newLabel')}
-                                className="flex-1 bg-transparent border-none text-[10px] outline-none px-1 text-slate-200 placeholder:text-slate-600 min-w-0"
-                                value={newLabelName}
-                                onChange={(e) => setNewLabelName(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && handleAddLabel()}
-                            />
-                            <input type="color" className="w-0 h-0 opacity-0 absolute" id="colorPicker" value={newLabelColor} onChange={(e) => setNewLabelColor(e.target.value)} />
-                            <label htmlFor="colorPicker" className="cursor-pointer text-slate-500 hover:text-white px-1">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-3 h-3"><path strokeLinecap="round" strokeLinejoin="round" d="M9.53 16.122a3 3 0 0 0-5.78 1.128 2.25 2.25 0 0 1-2.4 2.245 4.5 4.5 0 0 0 8.4-2.245c0-.399-.078-.78-.22-1.128Zm0 0a15.998 15.998 0 0 0 3.388-1.62m-5.048 4.025a3 3 0 0 1-4.24-4.24m4.24 4.24.004-.004m-5.895-3.085a15.999 15.999 0 0 1-2.454.49" /></svg>
-                            </label>
-                            <button onClick={handleAddLabel} className="bg-emerald-600/20 hover:bg-emerald-600 text-emerald-500 hover:text-white p-0.5 rounded transition-all">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-3 h-3"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
-                            </button>
+                    <div className="flex flex-col md:flex-row gap-2 items-center">
+                        {/* Label Creator */}
+                        <div className="flex-none flex items-center gap-2">
+                            <div className="flex bg-slate-900 border border-slate-800 rounded p-1 w-48 shadow-inner items-center">
+                                <span className="w-3 h-3 rounded ml-1 mr-1 shadow-sm" style={{ backgroundColor: newLabelColor }} />
+                                <input
+                                    type="text"
+                                    placeholder={t('newLabel')}
+                                    className="flex-1 bg-transparent border-none text-[10px] outline-none px-1 text-slate-200 placeholder:text-slate-600 min-w-0"
+                                    value={newLabelName}
+                                    onChange={(e) => setNewLabelName(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleAddLabel()}
+                                />
+                                <input type="color" className="w-0 h-0 opacity-0 absolute" id="colorPicker" value={newLabelColor} onChange={(e) => setNewLabelColor(e.target.value)} />
+                                <label htmlFor="colorPicker" className="cursor-pointer text-slate-500 hover:text-white px-1">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-3 h-3"><path strokeLinecap="round" strokeLinejoin="round" d="M9.53 16.122a3 3 0 0 0-5.78 1.128 2.25 2.25 0 0 1-2.4 2.245 4.5 4.5 0 0 0 8.4-2.245c0-.399-.078-.78-.22-1.128Zm0 0a15.998 15.998 0 0 0 3.388-1.62m-5.048 4.025a3 3 0 0 1-4.24-4.24m4.24 4.24.004-.004m-5.895-3.085a15.999 15.999 0 0 1-2.454.49" /></svg>
+                                </label>
+                                <button onClick={handleAddLabel} className="bg-emerald-600/20 hover:bg-emerald-600 text-emerald-500 hover:text-white p-0.5 rounded transition-all">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-3 h-3"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+                                </button>
+                            </div>
                         </div>
 
-                        {/* 2. Label List (Grid Items) */}
-                        {labels.map(lbl => (
-                            <div
-                                key={lbl.id}
-                                onClick={() => setSelectedBrush(lbl.id)}
-                                className={clsx(
-                                    "px-2 py-0.5 rounded text-[10px] font-medium border flex items-center gap-1.5 transition-all cursor-pointer group select-none hover:bg-slate-800/50 whitespace-nowrap w-full min-h-[32px]",
-                                    selectedBrush === lbl.id ? "ring-1 ring-offset-1 ring-offset-slate-950 scale-[1.02]" : "opacity-80 hover:opacity-100"
-                                )}
-                                style={{
-                                    backgroundColor: `${lbl.color}10`,
-                                    borderColor: lbl.color,
-                                    color: lbl.color
-                                }}
-                            >
-                                <div className="flex-none w-1.5 h-1.5 rounded-full shadow-[0_0_5px_currentColor]" style={{ backgroundColor: lbl.color }} />
-                                <span className="flex-1 truncate">{lbl.name}</span>
-
-                                <button
-                                    className="opacity-0 group-hover:opacity-100 hover:text-white transition-opacity px-0.5"
-                                    onClick={(e) => { e.stopPropagation(); setEditingLabelId(lbl.id); setActiveTab('global'); }}
-                                    title={t('notes')}
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-2.5 h-2.5"><path d="m2.695 14.762-1.262 3.155a.5.5 0 0 0 .65.65l3.155-1.262a4 4 0 0 0 1.343-.886L17.5 5.501a2.121 2.121 0 0 0-3-3L3.58 13.419a4 4 0 0 0-.885 1.343Z" /></svg>
-                                </button>
-
-                                <span
-                                    className="opacity-0 group-hover:opacity-100 hover:text-red-400 transition-colors px-0.5 cursor-pointer"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        // Use deleteLabel logic from store is simpler but using existing logic here is safer for context
-                                        const hasGlobalNotes = lbl.notes && lbl.notes.trim().length > 0;
-                                        const hasTabContent = Object.values(lbl.customTabs || {}).some(tab => tab.content && tab.content.trim().length > 0);
-                                        const hasInstanceNotes = Object.entries(schedule).some(([key, labelId]) => {
-                                            if (labelId !== lbl.id) return false;
-                                            return instanceNotes[key] && instanceNotes[key].trim().length > 0;
-                                        });
-
-                                        if (hasGlobalNotes || hasTabContent || hasInstanceNotes) {
-                                            setConfirmModal({
-                                                message: t('deleteLabel'),
-                                                onConfirm: () => removeLabel(lbl.id)
-                                            });
-                                        } else {
-                                            removeLabel(lbl.id);
-                                        }
+                        {/* Label List */}
+                        <div className="flex-1 flex flex-wrap gap-1.5 items-center overflow-x-auto custom-scrollbar pb-1 md:pb-0">
+                            {labels.map(lbl => (
+                                <div
+                                    key={lbl.id}
+                                    onClick={() => setSelectedBrush(lbl.id)}
+                                    className={clsx(
+                                        "px-2 py-0.5 rounded text-[10px] font-medium border flex items-center gap-1.5 transition-all cursor-pointer group select-none hover:bg-slate-800/50 whitespace-nowrap",
+                                        selectedBrush === lbl.id ? "ring-1 ring-offset-1 ring-offset-slate-950 scale-105" : "opacity-80 hover:opacity-100"
+                                    )}
+                                    style={{
+                                        backgroundColor: `${lbl.color}10`,
+                                        borderColor: lbl.color,
+                                        color: lbl.color
                                     }}
-                                >×</span>
-                            </div>
-                        ))}
+                                >
+                                    <div className="w-1.5 h-1.5 rounded-full shadow-[0_0_5px_currentColor]" style={{ backgroundColor: lbl.color }} />
+                                    <span className="max-w-[80px] truncate">{lbl.name}</span>
+
+                                    <button
+                                        className="opacity-0 group-hover:opacity-100 hover:text-white transition-opacity px-0.5"
+                                        onClick={(e) => { e.stopPropagation(); setEditingLabelId(lbl.id); setActiveTab('global'); }}
+                                        title={t('notes')}
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-2.5 h-2.5"><path d="m2.695 14.762-1.262 3.155a.5.5 0 0 0 .65.65l3.155-1.262a4 4 0 0 0 1.343-.886L17.5 5.501a2.121 2.121 0 0 0-3-3L3.58 13.419a4 4 0 0 0-.885 1.343Z" /></svg>
+                                    </button>
+
+                                    <span
+                                        className="opacity-0 group-hover:opacity-100 hover:text-red-400 transition-colors px-0.5 cursor-pointer"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            // ... existing delete logic ...
+                                            const hasGlobalNotes = lbl.notes && lbl.notes.trim().length > 0;
+                                            const hasTabContent = Object.values(lbl.customTabs || {}).some(tab => tab.content && tab.content.trim().length > 0);
+                                            const hasInstanceNotes = Object.entries(schedule).some(([key, labelId]) => {
+                                                if (labelId !== lbl.id) return false;
+                                                return instanceNotes[key] && instanceNotes[key].trim().length > 0;
+                                            });
+
+                                            if (hasGlobalNotes || hasTabContent || hasInstanceNotes) {
+                                                setConfirmModal({
+                                                    message: t('deleteLabel'),
+                                                    onConfirm: () => removeLabel(lbl.id)
+                                                });
+                                            } else {
+                                                removeLabel(lbl.id);
+                                            }
+                                        }}
+                                    >×</span>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -390,35 +392,32 @@ export function SmartCalendar() {
             {/* --- MIDDLE: CALENDAR --- */}
             <main className="flex-1 relative overflow-hidden flex flex-col min-h-0">
                 {/* Header inside Main (Always Visible) */}
-                {/* Header inside Main (Hidden in Config Mode) */}
-                {isLocked && (
-                    <div className="flex-none p-4 flex justify-between items-center z-30 bg-gradient-to-b from-slate-950/50 to-transparent">
-                        <div className="flex items-center gap-2">
-                            <h1 className="text-xl font-black text-white tracking-tighter drop-shadow-lg">
-                                <span className="text-emerald-500">{t('appTitle')}</span> {t('planner')}
-                            </h1>
+                <div className="flex-none p-4 flex justify-between items-center z-30 bg-gradient-to-b from-slate-950/50 to-transparent">
+                    <div className="flex items-center gap-2">
+                        <h1 className="text-xl font-black text-white tracking-tighter drop-shadow-lg">
+                            <span className="text-emerald-500">{t('appTitle')}</span> {t('planner')}
+                        </h1>
 
 
-                        </div>
-                        <div className="flex items-center gap-4">
-                            <div className="px-4 py-1.5 rounded-xl bg-slate-900/50 border border-slate-800/50 font-mono text-emerald-400 font-bold text-sm backdrop-blur">
-                                {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                            </div>
-                            <button
-                                onClick={handleLogout}
-                                className="p-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 transition-all hover:scale-105 active:scale-95"
-                                title={t('logout')}
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-                                    <path fillRule="evenodd" d="M16.5 3.75a1.5 1.5 0 0 1 1.5 1.5v13.5a1.5 1.5 0 0 1-1.5 1.5h-6a1.5 1.5 0 0 1-1.5-1.5V15a.75.75 0 0 0-1.5 0v3.75a3 3 0 0 0 3 3h6a3 3 0 0 0 3-3V5.25a3 3 0 0 0-3-3h-6a3 3 0 0 0-3 3V9A.75.75 0 1 0 9 9V5.25a1.5 1.5 0 0 1 1.5-1.5h6ZM5.78 8.47a.75.75 0 0 0-1.06 0l-3 3a.75.75 0 0 0 0 1.06l3 3a.75.75 0 0 0 1.06-1.06l-1.72-1.72H15a.75.75 0 0 0 0-1.5H4.06l1.72-1.72a.75.75 0 0 0 0-1.06Z" clipRule="evenodd" />
-                                </svg>
-                            </button>
-                        </div>
                     </div>
-                )}
+                    <div className="flex items-center gap-4">
+                        <div className="px-4 py-1.5 rounded-xl bg-slate-900/50 border border-slate-800/50 font-mono text-emerald-400 font-bold text-sm backdrop-blur">
+                            {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                        </div>
+                        <button
+                            onClick={handleLogout}
+                            className="p-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 transition-all hover:scale-105 active:scale-95"
+                            title={t('logout')}
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+                                <path fillRule="evenodd" d="M16.5 3.75a1.5 1.5 0 0 1 1.5 1.5v13.5a1.5 1.5 0 0 1-1.5 1.5h-6a1.5 1.5 0 0 1-1.5-1.5V15a.75.75 0 0 0-1.5 0v3.75a3 3 0 0 0 3 3h6a3 3 0 0 0 3-3V5.25a3 3 0 0 0-3-3h-6a3 3 0 0 0-3 3V9A.75.75 0 1 0 9 9V5.25a1.5 1.5 0 0 1 1.5-1.5h6ZM5.78 8.47a.75.75 0 0 0-1.06 0l-3 3a.75.75 0 0 0 0 1.06l3 3a.75.75 0 0 0 1.06-1.06l-1.72-1.72H15a.75.75 0 0 0 0-1.5H4.06l1.72-1.72a.75.75 0 0 0 0-1.06Z" clipRule="evenodd" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
 
                 {/* Grid */}
-                <div ref={containerRef} className="flex-1 overflow-auto p-4 pt-0 custom-scrollbar">
+                <div ref={containerRef} className="flex-1 overflow-auto p-0 pt-0 custom-scrollbar">
                     <div className={clsx("glass-panel p-1 relative select-none transition-all duration-500 mx-auto w-full max-w-none mb-16")}>
                         {/* Real-time Arrow */}
                         {isTimeVisible && (
@@ -426,10 +425,10 @@ export function SmartCalendar() {
                                 className="absolute w-full flex items-center z-20 pointer-events-none transition-all duration-1000 ease-linear"
                                 style={{ top: `calc(36px + (100% - 36px) * ${percentage / 100})` }}
                             >
-                                <div className="w-20 pr-2 flex justify-end">
-                                    <div className="text-white/30 font-bold text-xl drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">➤</div>
+                                <div className="w-16 pr-1 flex justify-end">
+                                    <div className="text-white/30 font-bold text-lg drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">➤</div>
                                 </div>
-                                <div className="flex-1 h-1 bg-white/20 shadow-[0_0_10px_rgba(255,255,255,0.1)]"></div>
+                                <div className="flex-1 h-0.5 bg-white/20 shadow-[0_0_10px_rgba(255,255,255,0.1)]"></div>
                             </div>
                         )}
 
@@ -437,7 +436,7 @@ export function SmartCalendar() {
                             <table className="w-full text-sm border-collapse">
                                 <thead>
                                     <tr>
-                                        <th className="py-2 px-2 text-center w-14 text-slate-500 font-mono text-[10px] bg-slate-900/50 backdrop-blur border-b border-slate-700">{t('time')}</th>
+                                        <th className="py-2 px-0 text-center w-10 text-slate-500 font-mono text-[9px] bg-slate-900/50 backdrop-blur border-b border-slate-700">{t('time')}</th>
                                         {DAYS.map((day, index) => (
                                             <th key={day} className={clsx(
                                                 "py-1 px-1 text-center font-normal text-sm tracking-tighter border-b backdrop-blur transition-colors",
@@ -451,7 +450,7 @@ export function SmartCalendar() {
                                 <tbody>
                                     {slots.map((slot, rowIndex) => (
                                         <tr key={rowIndex} className="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors h-8">
-                                            <td className="py-2 px-1 text-center text-slate-600 font-mono text-[10px] border-r border-slate-800/50 relative group/time">
+                                            <td className="py-2 px-0 text-center text-slate-600 font-mono text-[9px] border-r border-slate-800/50 relative group/time">
                                                 {slot.label}
                                             </td>
                                             {DAYS.map((_, colIndex) => {
@@ -476,13 +475,13 @@ export function SmartCalendar() {
                                                         {/* Committed Layer */}
                                                         {labelObj && (
                                                             <div
-                                                                className="absolute inset-0 w-full h-full border-l-2 pl-1 flex items-center overflow-hidden transition-all duration-300"
+                                                                className="absolute inset-0 w-full h-full border-l-2 pl-0.5 flex flex-col justify-center overflow-hidden transition-all duration-300"
                                                                 style={{
                                                                     backgroundColor: `${labelObj.color}30`,
                                                                     borderColor: labelObj.color
                                                                 }}
                                                             >
-                                                                <span className="text-[11px] font-normal tracking-tighter opacity-100 truncate px-1 flex-1 leading-tight select-none" style={{ color: labelObj.color }}>
+                                                                <span className="text-[10px] font-normal tracking-tight opacity-100 px-0.5 leading-3 whitespace-normal break-words line-clamp-2 select-none" style={{ color: labelObj.color }}>
                                                                     {labelObj.name}
                                                                 </span>
 
@@ -676,6 +675,7 @@ export function SmartCalendar() {
                                             className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none focus:border-blue-500 transition-colors shadow-inner"
                                             value={newStoryTitle}
                                             onChange={(e) => setNewStoryTitle(e.target.value)}
+                                            autoFocus
                                         />
                                     </div>
 
