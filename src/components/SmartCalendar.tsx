@@ -462,9 +462,10 @@ export function SmartCalendar() {
                                         }
                                     }}
                                     onTouchMove={(e) => {
-                                        // Prevent default to allow "drawing" instead of scrolling on the grid
-                                        // e.preventDefault(); // CAREFUL: This might block scrolling entirely if not scoped well.
-                                        // Using touch-action: none on the cells is safer for modern browsers.
+                                        // If we are currently selecting (dragging), prevent default to stop scrolling
+                                        if (selectionStart) {
+                                            if (e.cancelable) e.preventDefault();
+                                        }
 
                                         const touch = e.touches[0];
                                         const element = document.elementFromPoint(touch.clientX, touch.clientY);
