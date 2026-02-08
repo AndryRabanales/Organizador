@@ -10,7 +10,7 @@ export function Button({ className, variant = 'primary', size = 'md', ...props }
     return (
         <button
             className={clsx(
-                "relative overflow-hidden font-mono font-medium rounded-lg transition-all active:scale-95 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border",
+                "relative overflow-hidden font-mono font-medium rounded-lg transition-all active:scale-95 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white border",
                 {
                     // Sizes
                     "px-3 py-1.5 text-xs": size === 'sm',
@@ -18,10 +18,10 @@ export function Button({ className, variant = 'primary', size = 'md', ...props }
                     "px-6 py-3 text-base": size === 'lg',
 
                     // Variants
-                    "bg-emerald-500/20 text-emerald-300 border-emerald-500/50 hover:bg-emerald-500/30 hover:border-emerald-400 focus:ring-emerald-500": variant === 'primary',
-                    "bg-slate-700/40 text-slate-300 border-slate-600/50 hover:bg-slate-700/60 hover:border-slate-500 focus:ring-slate-500": variant === 'secondary',
-                    "bg-red-500/20 text-red-300 border-red-500/50 hover:bg-red-500/30 hover:border-red-400 focus:ring-red-500": variant === 'danger',
-                    "bg-transparent text-slate-400 border-transparent hover:text-white hover:bg-slate-800/50": variant === 'ghost',
+                    "bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-200 hover:border-emerald-300 focus:ring-emerald-500": variant === 'primary',
+                    "bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200 hover:border-slate-300 focus:ring-slate-400": variant === 'secondary',
+                    "bg-red-50 text-red-600 border-red-200 hover:bg-red-100 hover:border-red-300 focus:ring-red-500": variant === 'danger',
+                    "bg-transparent text-slate-500 border-transparent hover:text-slate-900 hover:bg-slate-100": variant === 'ghost',
                 },
                 className
             )}

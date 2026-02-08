@@ -294,9 +294,9 @@ export function SmartCalendar() {
     const viewingStory = stories.find(s => s.id === viewingStoryId);
 
     return (
-        <div className="flex flex-col h-screen w-full relative bg-slate-950/20 overflow-hidden">
+        <div className="flex flex-col h-screen w-full relative bg-slate-50 overflow-hidden">
             {useCalendarStore(state => state.isLoading) && (
-                <div className="absolute inset-0 z-[200] bg-slate-950 flex flex-col items-center justify-center gap-4 animate-in fade-in duration-500">
+                <div className="absolute inset-0 z-[200] bg-white flex flex-col items-center justify-center gap-4 animate-in fade-in duration-500">
                     <div className="w-8 h-8 rounded-full border-4 border-emerald-500/30 border-t-emerald-500 animate-spin" />
                     <p className="text-emerald-500 font-mono text-xs uppercase tracking-widest animate-pulse">{t('syncing')}</p>
                 </div>
@@ -305,7 +305,7 @@ export function SmartCalendar() {
             {/* --- TOP PANEL: LABELS --- */}
             <div
                 className={clsx(
-                    "flex-none bg-slate-950/95 backdrop-blur-xl border-b border-slate-800 transition-all duration-300 ease-in-out z-40",
+                    "flex-none bg-white/95 backdrop-blur-xl border-b border-slate-200 transition-all duration-300 ease-in-out z-40",
                     !isLocked ? "h-auto opacity-100 py-1" : "max-h-0 opacity-0 py-0 overflow-hidden"
                 )}
             >
@@ -313,18 +313,18 @@ export function SmartCalendar() {
                     <div className="flex flex-col md:flex-row gap-2 items-center">
                         {/* Label Creator */}
                         <div className="flex-none flex items-center gap-2">
-                            <div className="flex bg-slate-900 border border-slate-800 rounded p-1 w-48 shadow-inner items-center">
+                            <div className="flex bg-slate-50 border border-slate-200 rounded p-1 w-48 shadow-inner items-center">
                                 <span className="w-3 h-3 rounded ml-1 mr-1 shadow-sm" style={{ backgroundColor: newLabelColor }} />
                                 <input
                                     type="text"
                                     placeholder={t('newLabel')}
-                                    className="flex-1 bg-transparent border-none text-[10px] outline-none px-1 text-slate-200 placeholder:text-slate-600 min-w-0"
+                                    className="flex-1 bg-transparent border-none text-[10px] outline-none px-1 text-slate-900 placeholder:text-slate-400 min-w-0"
                                     value={newLabelName}
                                     onChange={(e) => setNewLabelName(e.target.value)}
                                     onKeyDown={(e) => e.key === 'Enter' && handleAddLabel()}
                                 />
                                 <input type="color" className="w-0 h-0 opacity-0 absolute" id="colorPicker" value={newLabelColor} onChange={(e) => setNewLabelColor(e.target.value)} />
-                                <label htmlFor="colorPicker" className="cursor-pointer text-slate-500 hover:text-white px-1">
+                                <label htmlFor="colorPicker" className="cursor-pointer text-slate-400 hover:text-slate-600 px-1">
                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-3 h-3"><path strokeLinecap="round" strokeLinejoin="round" d="M9.53 16.122a3 3 0 0 0-5.78 1.128 2.25 2.25 0 0 1-2.4 2.245 4.5 4.5 0 0 0 8.4-2.245c0-.399-.078-.78-.22-1.128Zm0 0a15.998 15.998 0 0 0 3.388-1.62m-5.048 4.025a3 3 0 0 1-4.24-4.24m4.24 4.24.004-.004m-5.895-3.085a15.999 15.999 0 0 1-2.454.49" /></svg>
                                 </label>
                                 <button onClick={handleAddLabel} className="bg-emerald-600/20 hover:bg-emerald-600 text-emerald-500 hover:text-white p-0.5 rounded transition-all">
@@ -340,8 +340,8 @@ export function SmartCalendar() {
                                     key={lbl.id}
                                     onClick={() => setSelectedBrush(lbl.id)}
                                     className={clsx(
-                                        "px-2 py-0.5 rounded text-[10px] font-medium border flex items-center gap-1.5 transition-all cursor-pointer group select-none hover:bg-slate-800/50 whitespace-nowrap",
-                                        selectedBrush === lbl.id ? "ring-1 ring-offset-1 ring-offset-slate-950 scale-105" : "opacity-80 hover:opacity-100"
+                                        "px-2 py-0.5 rounded text-[10px] font-medium border flex items-center gap-1.5 transition-all cursor-pointer group select-none hover:bg-slate-100 whitespace-nowrap",
+                                        selectedBrush === lbl.id ? "ring-1 ring-offset-1 ring-offset-white scale-105" : "opacity-80 hover:opacity-100"
                                     )}
                                     style={{
                                         backgroundColor: `${lbl.color}10`,
@@ -353,7 +353,7 @@ export function SmartCalendar() {
                                     <span className="max-w-[80px] truncate">{lbl.name}</span>
 
                                     <button
-                                        className="text-slate-400 hover:text-white transition-opacity px-0.5"
+                                        className="text-slate-400 hover:text-slate-600 transition-opacity px-0.5"
                                         onClick={(e) => { e.stopPropagation(); setEditingLabelId(lbl.id); setActiveTab('global'); }}
                                         title={t('notes')}
                                     >
@@ -392,16 +392,16 @@ export function SmartCalendar() {
             {/* --- MIDDLE: CALENDAR --- */}
             <main className="flex-1 relative overflow-hidden flex flex-col min-h-0">
                 {/* Header inside Main (Always Visible) */}
-                <div className="flex-none p-4 flex justify-between items-center z-30 bg-gradient-to-b from-slate-950/50 to-transparent">
+                <div className="flex-none p-4 flex justify-between items-center z-30 bg-gradient-to-b from-white to-transparent">
                     <div className="flex items-center gap-2">
-                        <h1 className="text-xl font-black text-white tracking-tighter drop-shadow-lg">
-                            <span className="text-emerald-500">{t('appTitle')}</span> {t('planner')}
+                        <h1 className="text-xl font-black text-slate-900 tracking-tighter drop-shadow-sm">
+                            <span className="text-emerald-600">{t('appTitle')}</span> {t('planner')}
                         </h1>
 
 
                     </div>
                     <div className="flex items-center gap-4">
-                        <div className="px-4 py-1.5 rounded-xl bg-slate-900/50 border border-slate-800/50 font-mono text-emerald-400 font-bold text-sm backdrop-blur">
+                        <div className="px-4 py-1.5 rounded-xl bg-white/80 border border-slate-200 font-mono text-emerald-600 font-bold text-sm backdrop-blur shadow-sm">
                             {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                         </div>
                         <button
@@ -426,9 +426,9 @@ export function SmartCalendar() {
                                 style={{ top: `calc(36px + (100% - 36px) * ${percentage / 100})` }}
                             >
                                 <div className="w-16 pr-1 flex justify-end">
-                                    <div className="text-white/30 font-bold text-lg drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">➤</div>
+                                    <div className="text-emerald-600 font-bold text-lg drop-shadow-[0_2px_4px_rgba(0,0,0,0.1)]">➤</div>
                                 </div>
-                                <div className="flex-1 h-0.5 bg-white/20 shadow-[0_0_10px_rgba(255,255,255,0.1)]"></div>
+                                <div className="flex-1 h-0.5 bg-emerald-500/50 shadow-[0_0_10px_rgba(16,185,129,0.3)]"></div>
                             </div>
                         )}
 
@@ -436,13 +436,13 @@ export function SmartCalendar() {
                             <table className="w-full text-sm border-collapse">
                                 <thead>
                                     <tr>
-                                        <th className="py-2 px-0 text-center w-10 text-slate-500 font-mono text-[9px] bg-slate-900/50 backdrop-blur border-b border-slate-700">{t('time')}</th>
+                                        <th className="py-2 px-0 text-center w-10 text-slate-500 font-mono text-[9px] bg-white/90 backdrop-blur border-b border-slate-200">{t('time')}</th>
                                         {DAYS.map((day, index) => (
                                             <th key={day} className={clsx(
                                                 "py-1 px-1 text-center font-normal text-sm tracking-tighter border-b backdrop-blur transition-colors",
                                                 index === appDay
-                                                    ? "text-emerald-400 bg-emerald-500/20 border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.2)]"
-                                                    : "text-slate-300 border-slate-700 bg-slate-900/50"
+                                                    ? "text-emerald-700 bg-emerald-50 border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.1)]"
+                                                    : "text-slate-600 border-slate-200 bg-white/90"
                                             )}>{day}</th>
                                         ))}
                                     </tr>
@@ -475,8 +475,8 @@ export function SmartCalendar() {
                                     onTouchEnd={handleMouseUp}
                                 >
                                     {slots.map((slot, rowIndex) => (
-                                        <tr key={rowIndex} className="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors h-8">
-                                            <td className="py-2 px-0 text-center text-slate-600 font-mono text-[9px] border-r border-slate-800/50 relative group/time">
+                                        <tr key={rowIndex} className="border-b border-slate-200 hover:bg-slate-100 transition-colors h-8">
+                                            <td className="py-2 px-0 text-center text-slate-500 font-mono text-[9px] border-r border-slate-200 relative group/time">
                                                 {slot.label}
                                             </td>
                                             {DAYS.map((_, colIndex) => {
@@ -494,8 +494,8 @@ export function SmartCalendar() {
                                                         data-col={colIndex}
                                                         data-row={rowIndex}
                                                         className={clsx(
-                                                            "p-0 border-r border-slate-800/30 relative h-8 cursor-pointer group transition-colors touch-none",
-                                                            colIndex === appDay && "bg-emerald-500/10 border-x border-emerald-500/20"
+                                                            "p-0 border-r border-slate-200 relative h-8 cursor-pointer group transition-colors touch-none",
+                                                            colIndex === appDay && "bg-emerald-50/50 border-x border-emerald-100"
                                                         )}
                                                         onMouseDown={() => handleMouseDown(colIndex, rowIndex)}
                                                         onMouseEnter={() => handleMouseEnter(colIndex, rowIndex)}
@@ -517,7 +517,7 @@ export function SmartCalendar() {
                                                                     <button
                                                                         onClick={(e) => { e.stopPropagation(); setEditingLabelId(labelObj.id); setEditingCellKey(cellKey); setActiveTab('instance'); }}
                                                                         onMouseDown={(e) => e.stopPropagation()}
-                                                                        className="mr-1 p-0.5 rounded hover:bg-black/20 text-slate-400 hover:text-white transition-all opacity-0 group-hover:opacity-100"
+                                                                        className="mr-1 p-0.5 rounded hover:bg-white/50 text-slate-600 hover:text-slate-900 transition-all opacity-0 group-hover:opacity-100"
                                                                         title={t('notes')}
                                                                     >
                                                                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3">
@@ -573,7 +573,7 @@ export function SmartCalendar() {
 
             {/* --- BOTTOM PANEL: CONFIG & STORIES --- */}
             <div className={clsx(
-                "flex-none bg-slate-950/95 backdrop-blur-xl border-t border-slate-800 transition-all duration-300 ease-in-out relative z-40",
+                "flex-none bg-white/95 backdrop-blur-xl border-t border-slate-200 transition-all duration-300 ease-in-out relative z-40",
                 !isLocked ? "py-2" : "py-0"
             )}>
                 {/* Toggle Handle (Absolute Top Center) */}
@@ -581,10 +581,10 @@ export function SmartCalendar() {
                     <button
                         onClick={toggleLock}
                         className={clsx(
-                            "flex items-center justify-center w-16 h-8 rounded-t-xl border-t border-x border-slate-700 backdrop-blur-md transition-all duration-300 shadow-[0_-5px_15px_rgba(0,0,0,0.5)]",
+                            "flex items-center justify-center w-16 h-8 rounded-t-xl border-t border-x border-slate-300 backdrop-blur-md transition-all duration-300 shadow-[0_-5px_15px_rgba(0,0,0,0.1)]",
                             !isLocked
-                                ? "bg-slate-950 text-slate-400 border-b-slate-950 translate-y-[1px]"
-                                : "bg-slate-900/80 text-emerald-500 hover:text-emerald-400 hover:bg-slate-800 border-b-slate-800"
+                                ? "bg-white text-slate-400 border-b-white translate-y-[1px]"
+                                : "bg-white/80 text-emerald-600 hover:text-emerald-500 hover:bg-slate-50 border-b-slate-200"
                         )}
                         title={!isLocked ? t('settingsClose') : t('settingsOpen')}
                     >
@@ -634,7 +634,7 @@ export function SmartCalendar() {
                                     onClick={() => {
                                         if (confirm(t('confirmClear'))) clearSchedule();
                                     }}
-                                    className="flex items-center gap-2 bg-slate-900 border border-slate-800 hover:border-red-500/50 text-slate-400 hover:text-red-400 px-4 py-2 rounded-lg transition-all shadow-sm hover:shadow-red-500/10 opacity-80 hover:opacity-100"
+                                    className="flex items-center gap-2 bg-white border border-slate-200 hover:border-red-500/50 text-slate-500 hover:text-red-500 px-4 py-2 rounded-lg transition-all shadow-sm hover:shadow-red-500/10 opacity-80 hover:opacity-100"
                                 >
                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" /></svg>
                                     <span className="text-sm font-medium">{t('clear')}</span>
@@ -644,23 +644,23 @@ export function SmartCalendar() {
 
                         {/* --- STATE: CONFIG --- */}
                         {activeBottomPanel === 'config' && (
-                            <div className="flex-none flex items-center gap-4 bg-slate-900 border border-slate-800 rounded p-1.5 shadow-inner animate-in fade-in zoom-in-95 duration-200">
+                            <div className="flex-none flex items-center gap-4 bg-slate-50 border border-slate-200 rounded p-1.5 shadow-inner animate-in fade-in zoom-in-95 duration-200">
                                 <div className="flex items-center gap-2">
-                                    <div className="bg-emerald-500/10 p-1 rounded text-emerald-500">
+                                    <div className="bg-emerald-100 p-1 rounded text-emerald-600">
                                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M10.34 15.84c-.688-.06-1.386-.09-2.09-.09H7.5a4.5 4.5 0 1 1 0-9h.75c.704 0 1.402-.03 2.09-.09m0 9.18c.253.962.584 1.892.985 2.783.247.55.06 1.21-.463 1.511l-.657.38c-.551.318-1.26.117-1.527-.461a20.845 20.845 0 0 1-1.44-4.282m3.102.069a18.03 18.03 0 0 1-.59-4.59c0-1.586.205-3.124.59-4.59m0 0a20.87 20.87 0 0 0-1.439-4.283c-.266-.579.444-1.29 1.527.461l.657.38c.522.301.709.96.463 1.511a21.78 21.78 0 0 1-.985 2.783m2.406 5.231c.216.924.49 1.82.81 2.684.283.766.124 1.636-.453 2.115l-1.076.92c-.676.578-1.745.578-2.422 0l-1.076-.92c-.577-.479-.736-1.349-.453-2.115a20.24 20.24 0 0 1 .81-2.684m5.215-6.577c.577.266 1.289-.444.461-1.527l.38-.657c.301-.522.96-.709 1.511-.463a21.77 21.77 0 0 1 2.783.985m-6.649.525c.577.266 1.289-.444.461-1.527l.38-.657c.301-.522.96-.709 1.511-.463a21.77 21.77 0 0 1 2.783.985" /></svg>
                                     </div>
                                     <span className="text-[10px] font-bold text-slate-500 uppercase">Range</span>
-                                    <div className="flex items-center gap-1 bg-slate-950 border border-slate-800 rounded px-1">
-                                        <input type="number" min="0" max="23" className="w-5 bg-transparent text-center text-xs outline-none text-emerald-400" value={config.startHour} onChange={(e) => handleConfigChange('startHour', e.target.value)} />
-                                        <span className="text-slate-600 text-xs">-</span>
-                                        <input type="number" min="1" max="24" className="w-5 bg-transparent text-center text-xs outline-none text-emerald-400" value={config.endHour} onChange={(e) => handleConfigChange('endHour', e.target.value)} />
+                                    <div className="flex items-center gap-1 bg-white border border-slate-200 rounded px-1">
+                                        <input type="number" min="0" max="23" className="w-5 bg-transparent text-center text-xs outline-none text-emerald-600" value={config.startHour} onChange={(e) => handleConfigChange('startHour', e.target.value)} />
+                                        <span className="text-slate-400 text-xs">-</span>
+                                        <input type="number" min="1" max="24" className="w-5 bg-transparent text-center text-xs outline-none text-emerald-600" value={config.endHour} onChange={(e) => handleConfigChange('endHour', e.target.value)} />
                                     </div>
                                 </div>
-                                <div className="w-px h-4 bg-slate-800" />
+                                <div className="w-px h-4 bg-slate-200" />
                                 <div className="flex items-center gap-2">
                                     <span className="text-[10px] font-bold text-slate-500 uppercase">Step</span>
                                     <select
-                                        className="bg-slate-950 border border-slate-800 rounded px-1 py-0.5 text-xs text-emerald-400 outline-none cursor-pointer"
+                                        className="bg-white border border-slate-200 rounded px-1 py-0.5 text-xs text-emerald-600 outline-none cursor-pointer"
                                         value={config.stepMinutes}
                                         onChange={(e) => handleConfigChange('stepMinutes', e.target.value)}
                                     >
@@ -673,7 +673,7 @@ export function SmartCalendar() {
                                 </div>
                                 <button
                                     onClick={() => setActiveBottomPanel('none')}
-                                    className="ml-2 text-slate-500 hover:text-white transition-colors"
+                                    className="ml-2 text-slate-400 hover:text-slate-600 transition-colors"
                                     title="Close Config"
                                 >
                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
@@ -683,13 +683,13 @@ export function SmartCalendar() {
 
                         {/* --- STATE: STORY --- */}
                         {activeBottomPanel === 'story' && (
-                            <div className="absolute bottom-16 md:bottom-20 z-50 flex flex-col gap-3 bg-slate-900/95 backdrop-blur-xl border border-slate-700 p-4 rounded-xl shadow-2xl animate-in zoom-in-95 slide-in-from-bottom-10 fade-in duration-300 w-full max-w-sm mx-auto left-0 right-0">
-                                <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                                    <div className="flex items-center gap-2 text-blue-400">
+                            <div className="absolute bottom-16 md:bottom-20 z-50 flex flex-col gap-3 bg-white/95 backdrop-blur-xl border border-slate-200 p-4 rounded-xl shadow-2xl animate-in zoom-in-95 slide-in-from-bottom-10 fade-in duration-300 w-full max-w-sm mx-auto left-0 right-0">
+                                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                                    <div className="flex items-center gap-2 text-blue-600">
                                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" /></svg>
                                         <span className="font-bold text-sm uppercase tracking-wide">{t('createStory')}</span>
                                     </div>
-                                    <button onClick={() => setActiveBottomPanel('none')} className="text-slate-500 hover:text-white transition-colors">
+                                    <button onClick={() => setActiveBottomPanel('none')} className="text-slate-400 hover:text-slate-600 transition-colors">
                                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
                                     </button>
                                 </div>
@@ -700,7 +700,7 @@ export function SmartCalendar() {
                                         <input
                                             type="text"
                                             placeholder={t('storyPlaceholder')}
-                                            className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none focus:border-blue-500 transition-colors shadow-inner"
+                                            className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 outline-none focus:border-blue-500 transition-colors shadow-inner"
                                             value={newStoryTitle}
                                             onChange={(e) => setNewStoryTitle(e.target.value)}
                                             autoFocus
@@ -711,7 +711,7 @@ export function SmartCalendar() {
                                         <div className="space-y-1">
                                             <label className="text-[10px] uppercase font-bold text-slate-500">{t('day')}</label>
                                             <select
-                                                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-2 text-xs text-slate-300 outline-none cursor-pointer focus:border-blue-500 transition-colors shadow-inner"
+                                                className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-2 text-xs text-slate-700 outline-none cursor-pointer focus:border-blue-500 transition-colors shadow-inner"
                                                 value={newStoryDay}
                                                 onChange={(e) => setNewStoryDay(Number(e.target.value))}
                                             >
@@ -720,9 +720,9 @@ export function SmartCalendar() {
                                         </div>
                                         <div className="space-y-1">
                                             <label className="text-[10px] uppercase font-bold text-slate-500">{t('time')}</label>
-                                            <div className="flex items-center gap-1 bg-slate-950 border border-slate-800 rounded-lg px-2 py-1.5 shadow-inner focus-within:border-blue-500 transition-colors">
+                                            <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 shadow-inner focus-within:border-blue-500 transition-colors">
                                                 <input type="number" min="0" max="23" className="w-full bg-transparent text-center text-sm outline-none" value={newStoryHour} onChange={(e) => setNewStoryHour(Number(e.target.value))} />
-                                                <span className="text-slate-500 font-bold">:</span>
+                                                <span className="text-slate-400 font-bold">:</span>
                                                 <input type="number" min="0" max="59" className="w-full bg-transparent text-center text-sm outline-none" value={newStoryMinute} onChange={(e) => setNewStoryMinute(Number(e.target.value))} />
                                             </div>
                                         </div>
@@ -731,7 +731,7 @@ export function SmartCalendar() {
                                     <div className="space-y-1">
                                         <label className="text-[10px] uppercase font-bold text-slate-500">{t('description')}</label>
                                         <textarea
-                                            className="w-full h-20 bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-300 outline-none resize-none focus:border-blue-500 transition-colors shadow-inner scrollbar-thin scrollbar-thumb-slate-700"
+                                            className="w-full h-20 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-700 outline-none resize-none focus:border-blue-500 transition-colors shadow-inner scrollbar-thin scrollbar-thumb-slate-300"
                                             placeholder={t('storyDescPlaceholder')}
                                             value={newStoryDesc}
                                             onChange={(e) => setNewStoryDesc(e.target.value)}
@@ -765,16 +765,16 @@ export function SmartCalendar() {
                             onClick={() => { setEditingLabelId(null); setEditingCellKey(null); }}
                         >
                             <div
-                                className="pointer-events-auto bg-slate-950 border border-slate-800 rounded-lg shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-4 duration-300 ring-1 ring-white/10"
+                                className="pointer-events-auto bg-white border border-slate-200 rounded-lg shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-4 duration-300 ring-1 ring-slate-900/5"
                                 style={{ borderColor: editingLabel.color }}
                                 onClick={(e) => e.stopPropagation()}
                             >
-                                <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
-                                    <h3 className="font-bold text-lg flex items-center gap-2 text-white">
+                                <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50/50">
+                                    <h3 className="font-bold text-lg flex items-center gap-2 text-slate-900">
                                         <span className="w-3 h-3 rounded-full shadow-[0_0_8px_currentColor]" style={{ backgroundColor: editingLabel.color }} />
                                         {editingLabel.name}
                                     </h3>
-                                    <div className="text-[10px] uppercase font-bold text-slate-500 tracking-wider border border-slate-800 px-2 py-0.5 rounded-full">{t('readOnly')}</div>
+                                    <div className="text-[10px] uppercase font-bold text-slate-500 tracking-wider border border-slate-200 px-2 py-0.5 rounded-full">{t('readOnly')}</div>
                                 </div>
 
                                 <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
@@ -783,10 +783,10 @@ export function SmartCalendar() {
                                         <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-2">
                                             {t('globalGuidelines')}
                                         </label>
-                                        <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-800 min-h-[80px]">
+                                        <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 min-h-[80px]">
                                             <div
-                                                className="text-slate-200 text-sm leading-relaxed whitespace-pre-wrap font-medium [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4"
-                                                dangerouslySetInnerHTML={{ __html: editingLabel.notes || '<span class="text-slate-600 italic">No global guidelines set.</span>' }}
+                                                className="text-slate-700 text-sm leading-relaxed whitespace-pre-wrap font-medium [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4"
+                                                dangerouslySetInnerHTML={{ __html: editingLabel.notes || '<span class="text-slate-400 italic">No global guidelines set.</span>' }}
                                             />
                                         </div>
                                     </div>
@@ -794,12 +794,12 @@ export function SmartCalendar() {
                                     {/* Instance Notes (if specific cell clicked) */}
                                     {editingCellKey && instanceNotes[editingCellKey] && (
                                         <div className="space-y-2 animate-in slide-in-from-bottom-2">
-                                            <label className="text-xs font-bold text-blue-400 uppercase flex items-center gap-2">
+                                            <label className="text-xs font-bold text-blue-600 uppercase flex items-center gap-2">
                                                 {t('specificNote')}
                                             </label>
-                                            <div className="bg-blue-500/10 p-4 rounded-lg border border-blue-500/20 min-h-[60px]">
+                                            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 min-h-[60px]">
                                                 <div
-                                                    className="text-blue-100 text-sm leading-relaxed whitespace-pre-wrap [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4"
+                                                    className="text-blue-900 text-sm leading-relaxed whitespace-pre-wrap [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4"
                                                     dangerouslySetInnerHTML={{ __html: instanceNotes[editingCellKey] }}
                                                 />
                                             </div>
@@ -807,7 +807,7 @@ export function SmartCalendar() {
                                     )}
                                 </div>
 
-                                <div className="p-4 border-t border-slate-800 bg-slate-900/30 flex justify-end">
+                                <div className="p-4 border-t border-slate-200 bg-slate-50/30 flex justify-end">
                                     <Button size="sm" onClick={() => { setEditingLabelId(null); setEditingCellKey(null); }}>{t('close')}</Button>
                                 </div>
                             </div>
@@ -815,16 +815,16 @@ export function SmartCalendar() {
                     ) : (
                         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
                             <div
-                                className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-4xl h-[80vh] flex flex-col animate-in zoom-in-95 duration-200 overflow-hidden"
+                                className="bg-slate-50 border border-slate-200 rounded-xl shadow-2xl w-full max-w-4xl h-[80vh] flex flex-col animate-in zoom-in-95 duration-200 overflow-hidden"
                                 style={{ boxShadow: `0 0 50px ${editingLabel.color}15` }}
                             >
                                 {/* Header */}
-                                <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-950/50 flex-none">
-                                    <h3 className="font-bold text-lg flex items-center gap-2">
+                                <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-white flex-none">
+                                    <h3 className="font-bold text-lg flex items-center gap-2 text-slate-900">
                                         <span className="w-3 h-3 rounded-full" style={{ backgroundColor: editingLabel.color }} />
-                                        {editingLabel.name} <span className="text-slate-500 font-normal text-sm">{t('notesManagement')}</span>
+                                        {editingLabel.name} <span className="text-slate-400 font-normal text-sm">{t('notesManagement')}</span>
                                     </h3>
-                                    <button onClick={() => { setEditingLabelId(null); setEditingCellKey(null); }} className="text-slate-400 hover:text-white transition-colors">
+                                    <button onClick={() => { setEditingLabelId(null); setEditingCellKey(null); }} className="text-slate-400 hover:text-slate-600 transition-colors">
                                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
                                             <path fillRule="evenodd" d="M5.47 5.47a.75.75 0 0 1 1.06 0L12 10.94l5.47-5.47a.75.75 0 1 1 1.06 1.06L13.06 12l5.47 5.47a.75.75 0 1 1-1.06 1.06L12 13.06l-5.47 5.47a.75.75 0 0 1-1.06-1.06L10.94 12 5.47 6.53a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
                                         </svg>
@@ -832,7 +832,7 @@ export function SmartCalendar() {
                                 </div>
 
                                 {/* Tab Navigation */}
-                                <div className="flex border-b border-slate-800 bg-slate-950/30 px-4 pt-4 gap-2 items-center overflow-x-auto custom-scrollbar">
+                                <div className="flex border-b border-slate-200 bg-slate-50/50 px-4 pt-4 gap-2 items-center overflow-x-auto custom-scrollbar">
                                     <div className="flex gap-2 flex-1">
                                         {/* Render Dynamic Open Tabs */}
                                         {(editingLabel.openTabs || []).map(tabId => {
@@ -907,19 +907,19 @@ export function SmartCalendar() {
                                                     onClick={() => setActiveTab(tabId)}
                                                     className={clsx(
                                                         "px-4 py-2 text-sm font-medium rounded-t-lg transition-colors relative flex items-center gap-2 group whitespace-nowrap cursor-pointer",
-                                                        isActive ? "text-white bg-slate-900 border-x border-t border-slate-700" : "text-slate-500 hover:text-slate-300 hover:bg-slate-800/50",
+                                                        isActive ? "text-slate-900 bg-white border-x border-t border-slate-200" : "text-slate-500 hover:text-slate-700 hover:bg-slate-100",
                                                         (draggedTab === tabId) ? "opacity-30" : "opacity-100"
                                                     )}
                                                 >
                                                     {tabTitle}
                                                     <span
                                                         onClick={handleTabClose}
-                                                        className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-slate-700 rounded-full transition-all text-slate-400 hover:text-red-400"
+                                                        className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-slate-200 rounded-full transition-all text-slate-400 hover:text-red-500"
                                                         title="Close Tab (Move to Trash)"
                                                     >
                                                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3"><path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" /></svg>
                                                     </span>
-                                                    {isActive && <div className="absolute bottom-[-1px] left-0 right-0 h-[1px] bg-slate-900" />}
+                                                    {isActive && <div className="absolute bottom-[-1px] left-0 right-0 h-[1px] bg-white" />}
                                                 </button>
                                             );
                                         })}
@@ -928,7 +928,7 @@ export function SmartCalendar() {
                                         {((editingLabel.openTabs?.length || 0) + (editingLabel.trashedTabs?.length || 0) < 7) && (
                                             <button
                                                 onClick={() => addTab(editingLabel.id)}
-                                                className="px-3 py-2 text-slate-500 hover:text-emerald-400 hover:bg-slate-800/50 rounded-t-lg transition-colors flex-none"
+                                                className="px-3 py-2 text-slate-400 hover:text-emerald-600 hover:bg-slate-100 rounded-t-lg transition-colors flex-none"
                                                 title="Add New Tab"
                                             >
                                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
@@ -941,7 +941,7 @@ export function SmartCalendar() {
                                     {/* Trash Toggle */}
                                     <button
                                         onClick={() => setShowTrash(!showTrash)}
-                                        className={clsx("p-2 rounded-lg transition-colors relative", showTrash ? "text-red-400 bg-slate-800" : "text-slate-500 hover:text-slate-300")}
+                                        className={clsx("p-2 rounded-lg transition-colors relative", showTrash ? "text-red-500 bg-slate-100" : "text-slate-400 hover:text-slate-600")}
                                         title="Trash / Closed Tabs"
                                     >
                                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
@@ -957,10 +957,10 @@ export function SmartCalendar() {
 
                                 {/* Trash Area */}
                                 {showTrash && (
-                                    <div className="bg-slate-900 border-b border-slate-800 p-4 animate-in slide-in-from-top-2 duration-200">
+                                    <div className="bg-slate-50 border-b border-slate-200 p-4 animate-in slide-in-from-top-2 duration-200">
                                         <h4 className="text-xs font-bold text-slate-500 uppercase mb-2">{t('trash')}</h4>
                                         <div className="flex flex-wrap gap-2">
-                                            {(editingLabel.trashedTabs || []).length === 0 && <span className="text-slate-600 text-sm">{t('trashEmpty')}</span>}
+                                            {(editingLabel.trashedTabs || []).length === 0 && <span className="text-slate-500 text-sm">{t('trashEmpty')}</span>}
                                             {(editingLabel.trashedTabs || []).map(tabId => {
                                                 let title = tabId;
                                                 let isProtected = false;
@@ -970,11 +970,11 @@ export function SmartCalendar() {
                                                 else if (editingLabel.customTabs?.[tabId]) title = editingLabel.customTabs[tabId].title;
 
                                                 return (
-                                                    <div key={tabId} className="flex items-center gap-2 bg-slate-950 border border-slate-700 rounded px-2 py-1 text-sm text-slate-300">
+                                                    <div key={tabId} className="flex items-center gap-2 bg-white border border-slate-200 rounded px-2 py-1 text-sm text-slate-600">
                                                         <span>{title}</span>
                                                         <button
                                                             onClick={() => restoreTab(editingLabel.id, tabId)}
-                                                            className="text-emerald-400 hover:text-emerald-300 p-0.5 hover:bg-emerald-400/10 rounded"
+                                                            className="text-emerald-600 hover:text-emerald-500 p-0.5 hover:bg-emerald-100 rounded"
                                                             title={t('restore')}
                                                         >
                                                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4"><path fillRule="evenodd" d="M15.312 11.424a5.5 5.5 0 01-9.201 2.466l-.312-.311h2.433a.75.75 0 000-1.5H3.989a.75.75 0 00-.75.75v4.242a.75.75 0 001.5 0v-2.43l.31.31a7 7 0 0011.712-3.138.75.75 0 00-1.449-.39z" clipRule="evenodd" /><path fillRule="evenodd" d="M13.485 1.431a.75.75 0 00-1.47 0 .75.75 0 001.47 0zM14 6.75a.75.75 0 00-1.5 0 .75.75 0 001.5 0zM16.5 4.75a.75.75 0 00-1.5 0 .75.75 0 001.5 0z" /></svg>
@@ -987,7 +987,7 @@ export function SmartCalendar() {
                                                                         deleteTabForever(editingLabel.id, tabId);
                                                                     }
                                                                 }}
-                                                                className="text-red-400 hover:text-red-300 p-0.5 hover:bg-red-400/10 rounded"
+                                                                className="text-red-500 hover:text-red-600 p-0.5 hover:bg-red-500/10 rounded"
                                                                 title={t('deleteForever')}
                                                             >
                                                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
@@ -1003,7 +1003,7 @@ export function SmartCalendar() {
                                 )}
 
                                 {/* Content Area */}
-                                <div className="flex-1 p-6 bg-slate-900/50 overflow-y-auto custom-scrollbar">
+                                <div className="flex-1 p-6 bg-slate-50 overflow-y-auto custom-scrollbar">
                                     {activeTab === 'global' && (
                                         <div className="animate-in fade-in duration-200">
                                             <WordEditor
@@ -1033,7 +1033,7 @@ export function SmartCalendar() {
                                 </div>
 
                                 {/* Footer */}
-                                <div className="p-4 border-t border-slate-800 bg-slate-950/30 flex justify-end">
+                                <div className="p-4 border-t border-slate-200 bg-white flex justify-end">
                                     <Button onClick={() => { setEditingLabelId(null); setEditingCellKey(null); }}>{t('closeSave')}</Button>
                                     {/* Render Custom Tabs */}
                                     {activeTab.startsWith('tab-') && editingLabel.customTabs?.[activeTab] && (
@@ -1089,7 +1089,7 @@ export function SmartCalendar() {
                                             <div className="flex-1 space-y-1">
                                                 <label className="text-[10px] uppercase text-slate-500 font-bold">Title</label>
                                                 <input
-                                                    className="w-full bg-slate-900 border border-slate-800 rounded px-2 py-1 text-sm text-white"
+                                                    className="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1 text-sm text-slate-900"
                                                     value={viewingStory.title}
                                                     onChange={(e) => updateStory(viewingStory.id, { title: e.target.value })}
                                                 />
@@ -1097,14 +1097,14 @@ export function SmartCalendar() {
                                             <div className="w-24 space-y-1">
                                                 <label className="text-[10px] uppercase text-slate-500 font-bold">Time</label>
                                                 <div className="flex items-center gap-1">
-                                                    <input type="number" className="w-full bg-slate-900 border border-slate-800 rounded px-1 py-1 text-sm text-center" value={viewingStory.hour} onChange={(e) => updateStory(viewingStory.id, { hour: Number(e.target.value) })} />
+                                                    <input type="number" className="w-full bg-slate-50 border border-slate-200 rounded px-1 py-1 text-sm text-center" value={viewingStory.hour} onChange={(e) => updateStory(viewingStory.id, { hour: Number(e.target.value) })} />
                                                     :
-                                                    <input type="number" className="w-full bg-slate-900 border border-slate-800 rounded px-1 py-1 text-sm text-center" value={viewingStory.minute} onChange={(e) => updateStory(viewingStory.id, { minute: Number(e.target.value) })} />
+                                                    <input type="number" className="w-full bg-slate-50 border border-slate-200 rounded px-1 py-1 text-sm text-center" value={viewingStory.minute} onChange={(e) => updateStory(viewingStory.id, { minute: Number(e.target.value) })} />
                                                 </div>
                                             </div>
                                         </div>
                                         <textarea
-                                            className="w-full h-32 bg-slate-900 border border-slate-800 rounded p-2 text-sm text-slate-300 resize-none focus:border-red-500/50 outline-none"
+                                            className="w-full h-32 bg-slate-50 border border-slate-200 rounded p-2 text-sm text-slate-700 resize-none focus:border-red-500/50 outline-none"
                                             value={viewingStory.content}
                                             onChange={(e) => updateStory(viewingStory.id, { content: e.target.value })}
                                         />
@@ -1120,8 +1120,8 @@ export function SmartCalendar() {
                                     </div>
                                 ) : (
                                     <div className="space-y-4">
-                                        <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-800 min-h-[120px] flex items-center">
-                                            <p className="text-white text-base leading-relaxed whitespace-pre-wrap font-medium w-full">
+                                        <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 min-h-[120px] flex items-center">
+                                            <p className="text-slate-900 text-base leading-relaxed whitespace-pre-wrap font-medium w-full">
                                                 {viewingStory.content || <span className="text-slate-500 italic">No details provided for this story.</span>}
                                             </p>
                                         </div>
@@ -1144,19 +1144,19 @@ export function SmartCalendar() {
             {
                 confirmModal && (
                     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-                        <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
+                        <div className="bg-white border border-slate-200 rounded-xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
                             <div className="p-6 space-y-4">
                                 <div className="flex items-center gap-3 text-amber-500">
                                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-8 h-8">
                                         <path fillRule="evenodd" d="M9.401 3.003c1.155-2 4.043-2 5.197 0l7.355 12.748c1.154 2-.29 4.5-2.599 4.5H4.645c-2.309 0-3.752-2.5-2.598-4.5L9.4 3.003ZM12 8.25a.75.75 0 0 1 .75.75v3.75a.75.75 0 0 1-1.5 0V9a.75.75 0 0 1 .75-.75Zm0 8.25a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Z" clipRule="evenodd" />
                                     </svg>
-                                    <h3 className="text-lg font-bold text-white">{t('confirmAction')}</h3>
+                                    <h3 className="text-lg font-bold text-slate-900">{t('confirmAction')}</h3>
                                 </div>
-                                <p className="text-slate-300 text-sm leading-relaxed">
+                                <p className="text-slate-600 text-sm leading-relaxed">
                                     {confirmModal.message}
                                 </p>
                             </div>
-                            <div className="p-4 bg-slate-950/50 border-t border-slate-800 flex justify-end gap-2">
+                            <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-2">
                                 <Button
                                     variant="ghost"
                                     size="sm"

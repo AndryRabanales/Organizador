@@ -2,13 +2,13 @@
 
 @layer base {
   body {
-    @apply bg-slate-950 text-slate-200 antialiased font-sans;
+    @apply bg-slate-50 text-slate-900 antialiased font-sans;
   }
 }
 
 /* Custom Glassmorphism */
 .glass-panel {
-  @apply bg-slate-900/60 backdrop-blur-xl border border-slate-700/50 shadow-xl rounded-2xl;
+  @apply bg-white/60 backdrop-blur-xl border border-slate-200/50 shadow-xl rounded-2xl;
 }
 
 .bio-bar-container {

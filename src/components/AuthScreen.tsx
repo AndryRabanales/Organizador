@@ -37,14 +37,14 @@ export function AuthScreen() {
     };
 
     return (
-        <div className="fixed inset-0 min-h-screen w-full overflow-hidden bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-black flex items-center justify-center p-4">
+        <div className="fixed inset-0 min-h-screen w-full overflow-hidden bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-white via-slate-50 to-slate-100 flex items-center justify-center p-4">
 
             {/* Background Ambient Glow */}
-            <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '4s' }} />
-            <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '7s' }} />
+            <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-emerald-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '4s' }} />
+            <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-indigo-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '7s' }} />
 
             {/* Glass Card */}
-            <div className="relative z-10 w-full max-w-md bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-8 flex flex-col items-center animate-in zoom-in-95 slide-in-from-bottom-8 duration-700 fade-in">
+            <div className="relative z-10 w-full max-w-md bg-white/80 backdrop-blur-xl border border-white/50 rounded-2xl shadow-2xl p-8 flex flex-col items-center animate-in zoom-in-95 slide-in-from-bottom-8 duration-700 fade-in">
 
                 {/* Logo / Title Area */}
                 <div className="mb-8 text-center space-y-2">
@@ -54,10 +54,10 @@ export function AuthScreen() {
                         </svg>
                     </div>
 
-                    <h1 className="text-3xl font-black text-white tracking-widest drop-shadow-md">
-                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-emerald-200">{t('appTitle')}</span> {t('planner')}
+                    <h1 className="text-3xl font-black text-slate-900 tracking-widest drop-shadow-sm">
+                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-emerald-400">{t('appTitle')}</span> {t('planner')}
                     </h1>
-                    <p className="text-slate-400 text-sm font-medium tracking-wide font-mono">
+                    <p className="text-slate-500 text-sm font-medium tracking-wide font-mono">
                         {t('subtitle')}
                     </p>
                 </div>
@@ -68,14 +68,14 @@ export function AuthScreen() {
                     disabled={isLoading}
                     className={clsx(
                         "group relative w-full flex items-center justify-center gap-3 px-6 py-4 rounded-xl transition-all duration-300",
-                        "bg-white text-slate-900 font-bold text-lg hover:bg-slate-50 hover:scale-[1.02] active:scale-[0.98]",
+                        "bg-slate-900 text-white font-bold text-lg hover:bg-slate-800 hover:scale-[1.02] active:scale-[0.98]",
                         "disabled:opacity-70 disabled:cursor-not-allowed",
-                        "shadow-[0_0_20px_-5px_rgba(255,255,255,0.3)] hover:shadow-[0_0_30px_-5px_rgba(255,255,255,0.5)]"
+                        "shadow-[0_0_20px_-5px_rgba(0,0,0,0.1)] hover:shadow-[0_0_30px_-5px_rgba(0,0,0,0.2)]"
                     )}
                 >
                     {/* Google Icon */}
                     {isLoading ? (
-                        <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-slate-900" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                         </svg>
@@ -92,7 +92,7 @@ export function AuthScreen() {
                 </button>
 
                 {/* Secure Badge */}
-                <div className="mt-8 flex items-center justify-center gap-2 text-xs text-slate-500 font-mono opacity-60">
+                <div className="mt-8 flex items-center justify-center gap-2 text-xs text-slate-400 font-mono opacity-60">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3">
                         <path fillRule="evenodd" d="M10 1a4.5 4.5 0 0 0-4.5 4.5V9H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2h-.5V5.5A4.5 4.5 0 0 0 10 1Zm3 8V5.5a3 3 0 1 0-6 0V9h6Z" clipRule="evenodd" />
                     </svg>
@@ -100,7 +100,7 @@ export function AuthScreen() {
                 </div>
 
                 {error && (
-                    <div className="mt-4 p-3 bg-red-500/10 border border-red-500/20 text-red-200 text-xs rounded-lg w-full text-center animate-pulse">
+                    <div className="mt-4 p-3 bg-red-50 border border-red-200 text-red-600 text-xs rounded-lg w-full text-center animate-pulse">
                         {error}
                     </div>
                 )}
@@ -108,7 +108,7 @@ export function AuthScreen() {
 
             {/* Footer */}
             <div className="absolute bottom-6 w-full text-center">
-                <p className="text-[10px] text-slate-600 uppercase tracking-widest">
+                <p className="text-[10px] text-slate-400 uppercase tracking-widest">
                     &copy; 2026 {t('copyright')}
                 </p>
             </div>

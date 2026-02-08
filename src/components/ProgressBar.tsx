@@ -26,8 +26,8 @@ export function ProgressBar({
     return (
         <div className="w-full space-y-2">
             <div className="flex justify-between items-end">
-                {label && <span className="text-xs font-mono uppercase tracking-widest text-slate-400">{label}</span>}
-                {showValue && <span className="text-xs font-mono font-bold text-slate-200">{Math.round(value)}{inverted ? "%" : "%"}</span>}
+                {label && <span className="text-xs font-mono uppercase tracking-widest text-slate-500">{label}</span>}
+                {showValue && <span className="text-xs font-mono font-bold text-slate-700">{Math.round(value)}{inverted ? "%" : "%"}</span>}
             </div>
 
             <div className="bio-bar-container">
