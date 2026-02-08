@@ -312,81 +312,77 @@ export function SmartCalendar() {
                 )}
             >
                 <div className="container mx-auto px-2">
-                    <div className="flex flex-col md:flex-row gap-2 items-center">
-                        {/* Label Creator */}
-                        <div className="flex-none flex items-center gap-2">
-                            <div className="flex bg-slate-900 border border-slate-800 rounded p-1 w-48 shadow-inner items-center">
-                                <span className="w-3 h-3 rounded ml-1 mr-1 shadow-sm" style={{ backgroundColor: newLabelColor }} />
-                                <input
-                                    type="text"
-                                    placeholder={t('newLabel')}
-                                    className="flex-1 bg-transparent border-none text-[10px] outline-none px-1 text-slate-200 placeholder:text-slate-600 min-w-0"
-                                    value={newLabelName}
-                                    onChange={(e) => setNewLabelName(e.target.value)}
-                                    onKeyDown={(e) => e.key === 'Enter' && handleAddLabel()}
-                                />
-                                <input type="color" className="w-0 h-0 opacity-0 absolute" id="colorPicker" value={newLabelColor} onChange={(e) => setNewLabelColor(e.target.value)} />
-                                <label htmlFor="colorPicker" className="cursor-pointer text-slate-500 hover:text-white px-1">
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-3 h-3"><path strokeLinecap="round" strokeLinejoin="round" d="M9.53 16.122a3 3 0 0 0-5.78 1.128 2.25 2.25 0 0 1-2.4 2.245 4.5 4.5 0 0 0 8.4-2.245c0-.399-.078-.78-.22-1.128Zm0 0a15.998 15.998 0 0 0 3.388-1.62m-5.048 4.025a3 3 0 0 1-4.24-4.24m4.24 4.24.004-.004m-5.895-3.085a15.999 15.999 0 0 1-2.454.49" /></svg>
-                                </label>
-                                <button onClick={handleAddLabel} className="bg-emerald-600/20 hover:bg-emerald-600 text-emerald-500 hover:text-white p-0.5 rounded transition-all">
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-3 h-3"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
-                                </button>
-                            </div>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                        {/* 1. Label Creator (Grid Item) */}
+                        <div className="flex bg-slate-900 border border-slate-800 rounded p-1 shadow-inner items-center h-full min-h-[32px] w-full">
+                            <span className="flex-none w-3 h-3 rounded ml-1 mr-1 shadow-sm" style={{ backgroundColor: newLabelColor }} />
+                            <input
+                                type="text"
+                                placeholder={t('newLabel')}
+                                className="flex-1 bg-transparent border-none text-[10px] outline-none px-1 text-slate-200 placeholder:text-slate-600 min-w-0"
+                                value={newLabelName}
+                                onChange={(e) => setNewLabelName(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && handleAddLabel()}
+                            />
+                            <input type="color" className="w-0 h-0 opacity-0 absolute" id="colorPicker" value={newLabelColor} onChange={(e) => setNewLabelColor(e.target.value)} />
+                            <label htmlFor="colorPicker" className="cursor-pointer text-slate-500 hover:text-white px-1">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-3 h-3"><path strokeLinecap="round" strokeLinejoin="round" d="M9.53 16.122a3 3 0 0 0-5.78 1.128 2.25 2.25 0 0 1-2.4 2.245 4.5 4.5 0 0 0 8.4-2.245c0-.399-.078-.78-.22-1.128Zm0 0a15.998 15.998 0 0 0 3.388-1.62m-5.048 4.025a3 3 0 0 1-4.24-4.24m4.24 4.24.004-.004m-5.895-3.085a15.999 15.999 0 0 1-2.454.49" /></svg>
+                            </label>
+                            <button onClick={handleAddLabel} className="bg-emerald-600/20 hover:bg-emerald-600 text-emerald-500 hover:text-white p-0.5 rounded transition-all">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-3 h-3"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+                            </button>
                         </div>
 
-                        {/* Label List */}
-                        <div className="flex-1 flex flex-wrap gap-1.5 items-center overflow-x-auto custom-scrollbar pb-1 md:pb-0">
-                            {labels.map(lbl => (
-                                <div
-                                    key={lbl.id}
-                                    onClick={() => setSelectedBrush(lbl.id)}
-                                    className={clsx(
-                                        "px-2 py-0.5 rounded text-[10px] font-medium border flex items-center gap-1.5 transition-all cursor-pointer group select-none hover:bg-slate-800/50 whitespace-nowrap",
-                                        selectedBrush === lbl.id ? "ring-1 ring-offset-1 ring-offset-slate-950 scale-105" : "opacity-80 hover:opacity-100"
-                                    )}
-                                    style={{
-                                        backgroundColor: `${lbl.color}10`,
-                                        borderColor: lbl.color,
-                                        color: lbl.color
-                                    }}
+                        {/* 2. Label List (Grid Items) */}
+                        {labels.map(lbl => (
+                            <div
+                                key={lbl.id}
+                                onClick={() => setSelectedBrush(lbl.id)}
+                                className={clsx(
+                                    "px-2 py-0.5 rounded text-[10px] font-medium border flex items-center gap-1.5 transition-all cursor-pointer group select-none hover:bg-slate-800/50 whitespace-nowrap w-full min-h-[32px]",
+                                    selectedBrush === lbl.id ? "ring-1 ring-offset-1 ring-offset-slate-950 scale-[1.02]" : "opacity-80 hover:opacity-100"
+                                )}
+                                style={{
+                                    backgroundColor: `${lbl.color}10`,
+                                    borderColor: lbl.color,
+                                    color: lbl.color
+                                }}
+                            >
+                                <div className="flex-none w-1.5 h-1.5 rounded-full shadow-[0_0_5px_currentColor]" style={{ backgroundColor: lbl.color }} />
+                                <span className="flex-1 truncate">{lbl.name}</span>
+
+                                <button
+                                    className="opacity-0 group-hover:opacity-100 hover:text-white transition-opacity px-0.5"
+                                    onClick={(e) => { e.stopPropagation(); setEditingLabelId(lbl.id); setActiveTab('global'); }}
+                                    title={t('notes')}
                                 >
-                                    <div className="w-1.5 h-1.5 rounded-full shadow-[0_0_5px_currentColor]" style={{ backgroundColor: lbl.color }} />
-                                    <span className="max-w-[80px] truncate">{lbl.name}</span>
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-2.5 h-2.5"><path d="m2.695 14.762-1.262 3.155a.5.5 0 0 0 .65.65l3.155-1.262a4 4 0 0 0 1.343-.886L17.5 5.501a2.121 2.121 0 0 0-3-3L3.58 13.419a4 4 0 0 0-.885 1.343Z" /></svg>
+                                </button>
 
-                                    <button
-                                        className="opacity-0 group-hover:opacity-100 hover:text-white transition-opacity px-0.5"
-                                        onClick={(e) => { e.stopPropagation(); setEditingLabelId(lbl.id); setActiveTab('global'); }}
-                                        title={t('notes')}
-                                    >
-                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-2.5 h-2.5"><path d="m2.695 14.762-1.262 3.155a.5.5 0 0 0 .65.65l3.155-1.262a4 4 0 0 0 1.343-.886L17.5 5.501a2.121 2.121 0 0 0-3-3L3.58 13.419a4 4 0 0 0-.885 1.343Z" /></svg>
-                                    </button>
+                                <span
+                                    className="opacity-0 group-hover:opacity-100 hover:text-red-400 transition-colors px-0.5 cursor-pointer"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        // Use deleteLabel logic from store is simpler but using existing logic here is safer for context
+                                        const hasGlobalNotes = lbl.notes && lbl.notes.trim().length > 0;
+                                        const hasTabContent = Object.values(lbl.customTabs || {}).some(tab => tab.content && tab.content.trim().length > 0);
+                                        const hasInstanceNotes = Object.entries(schedule).some(([key, labelId]) => {
+                                            if (labelId !== lbl.id) return false;
+                                            return instanceNotes[key] && instanceNotes[key].trim().length > 0;
+                                        });
 
-                                    <span
-                                        className="opacity-0 group-hover:opacity-100 hover:text-red-400 transition-colors px-0.5 cursor-pointer"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            // ... existing delete logic ...
-                                            const hasGlobalNotes = lbl.notes && lbl.notes.trim().length > 0;
-                                            const hasTabContent = Object.values(lbl.customTabs || {}).some(tab => tab.content && tab.content.trim().length > 0);
-                                            const hasInstanceNotes = Object.entries(schedule).some(([key, labelId]) => {
-                                                if (labelId !== lbl.id) return false;
-                                                return instanceNotes[key] && instanceNotes[key].trim().length > 0;
+                                        if (hasGlobalNotes || hasTabContent || hasInstanceNotes) {
+                                            setConfirmModal({
+                                                message: t('deleteLabel'),
+                                                onConfirm: () => removeLabel(lbl.id)
                                             });
-
-                                            if (hasGlobalNotes || hasTabContent || hasInstanceNotes) {
-                                                setConfirmModal({
-                                                    message: t('deleteLabel'),
-                                                    onConfirm: () => removeLabel(lbl.id)
-                                                });
-                                            } else {
-                                                removeLabel(lbl.id);
-                                            }
-                                        }}
-                                    >×</span>
-                                </div>
-                            ))}
-                        </div>
+                                        } else {
+                                            removeLabel(lbl.id);
+                                        }
+                                    }}
+                                >×</span>
+                            </div>
+                        ))}
                     </div>
                 </div>
             </div>
