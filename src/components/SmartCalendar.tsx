@@ -392,7 +392,10 @@ export function SmartCalendar() {
             {/* --- MIDDLE: CALENDAR --- */}
             <main className="flex-1 relative overflow-hidden flex flex-col min-h-0">
                 {/* Header inside Main (Always Visible) */}
-                <div className="flex-none p-4 flex justify-between items-center z-30 bg-gradient-to-b from-white to-transparent">
+                <div className={clsx(
+                    "flex-none p-4 flex justify-between items-center z-30 bg-gradient-to-b from-white to-transparent",
+                    activeBottomPanel === 'config' && "hidden"
+                )}>
                     <div className="flex items-center gap-2">
                         <h1 className="text-xl font-black text-slate-900 tracking-tighter drop-shadow-sm">
                             <span className="text-emerald-600">{t('appTitle')}</span> {t('planner')}
