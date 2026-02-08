@@ -353,7 +353,7 @@ export function SmartCalendar() {
                                     <span className="max-w-[80px] truncate">{lbl.name}</span>
 
                                     <button
-                                        className="opacity-0 group-hover:opacity-100 hover:text-white transition-opacity px-0.5"
+                                        className="text-slate-400 hover:text-white transition-opacity px-0.5"
                                         onClick={(e) => { e.stopPropagation(); setEditingLabelId(lbl.id); setActiveTab('global'); }}
                                         title={t('notes')}
                                     >
@@ -361,7 +361,7 @@ export function SmartCalendar() {
                                     </button>
 
                                     <span
-                                        className="opacity-0 group-hover:opacity-100 hover:text-red-400 transition-colors px-0.5 cursor-pointer"
+                                        className="text-slate-400 hover:text-red-400 transition-colors px-0.5 cursor-pointer"
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             // ... existing delete logic ...
@@ -447,7 +447,33 @@ export function SmartCalendar() {
                                         ))}
                                     </tr>
                                 </thead>
-                                <tbody>
+                                <tbody
+                                    onTouchStart={(e) => {
+                                        const touch = e.touches[0];
+                                        const element = document.elementFromPoint(touch.clientX, touch.clientY);
+                                        const cell = element?.closest('td[data-col]');
+                                        if (cell) {
+                                            const col = parseInt(cell.getAttribute('data-col') || '0');
+                                            const row = parseInt(cell.getAttribute('data-row') || '0');
+                                            handleMouseDown(col, row);
+                                        }
+                                    }}
+                                    onTouchMove={(e) => {
+                                        // Prevent default to allow "drawing" instead of scrolling on the grid
+                                        // e.preventDefault(); // CAREFUL: This might block scrolling entirely if not scoped well.
+                                        // Using touch-action: none on the cells is safer for modern browsers.
+
+                                        const touch = e.touches[0];
+                                        const element = document.elementFromPoint(touch.clientX, touch.clientY);
+                                        const cell = element?.closest('td[data-col]');
+                                        if (cell) {
+                                            const col = parseInt(cell.getAttribute('data-col') || '0');
+                                            const row = parseInt(cell.getAttribute('data-row') || '0');
+                                            handleMouseEnter(col, row);
+                                        }
+                                    }}
+                                    onTouchEnd={handleMouseUp}
+                                >
                                     {slots.map((slot, rowIndex) => (
                                         <tr key={rowIndex} className="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors h-8">
                                             <td className="py-2 px-0 text-center text-slate-600 font-mono text-[9px] border-r border-slate-800/50 relative group/time">
@@ -465,8 +491,10 @@ export function SmartCalendar() {
                                                 return (
                                                     <td
                                                         key={colIndex}
+                                                        data-col={colIndex}
+                                                        data-row={rowIndex}
                                                         className={clsx(
-                                                            "p-0 border-r border-slate-800/30 relative h-8 cursor-pointer group transition-colors",
+                                                            "p-0 border-r border-slate-800/30 relative h-8 cursor-pointer group transition-colors touch-none",
                                                             colIndex === appDay && "bg-emerald-500/10 border-x border-emerald-500/20"
                                                         )}
                                                         onMouseDown={() => handleMouseDown(colIndex, rowIndex)}
