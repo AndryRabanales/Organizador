@@ -28,6 +28,11 @@ export function SmartCalendar() {
     const [selectionStart, setSelectionStart] = useState<{ col: number, row: number } | null>(null);
     const [selectionEnd, setSelectionEnd] = useState<{ col: number, row: number } | null>(null);
 
+    // Touch / Long Press State
+    const longPressTimer = useRef<NodeJS.Timeout | null>(null);
+    const isLongPressActive = useRef(false);
+    const touchStartPosition = useRef<{ x: number, y: number } | null>(null);
+
     // Real-time clock
     const [now, setNow] = useState(new Date());
     useEffect(() => {
@@ -453,30 +458,63 @@ export function SmartCalendar() {
                                 <tbody
                                     onTouchStart={(e) => {
                                         const touch = e.touches[0];
-                                        const element = document.elementFromPoint(touch.clientX, touch.clientY);
-                                        const cell = element?.closest('td[data-col]');
-                                        if (cell) {
-                                            const col = parseInt(cell.getAttribute('data-col') || '0');
-                                            const row = parseInt(cell.getAttribute('data-row') || '0');
-                                            handleMouseDown(col, row);
-                                        }
+                                        touchStartPosition.current = { x: touch.clientX, y: touch.clientY };
+                                        isLongPressActive.current = false;
+
+                                        // Start Long Press Timer (500ms)
+                                        longPressTimer.current = setTimeout(() => {
+                                            isLongPressActive.current = true;
+                                            if (navigator.vibrate) navigator.vibrate(50); // Haptic feedback
+
+                                            const element = document.elementFromPoint(touch.clientX, touch.clientY);
+                                            const cell = element?.closest('td[data-col]');
+                                            if (cell) {
+                                                const col = parseInt(cell.getAttribute('data-col') || '0');
+                                                const row = parseInt(cell.getAttribute('data-row') || '0');
+                                                handleMouseDown(col, row);
+                                            }
+                                        }, 400); // 400ms threshold for "Long Press"
                                     }}
                                     onTouchMove={(e) => {
-                                        // If we are currently selecting (dragging), prevent default to stop scrolling
-                                        if (selectionStart) {
-                                            if (e.cancelable) e.preventDefault();
+                                        const touch = e.touches[0];
+                                        const startX = touchStartPosition.current?.x || 0;
+                                        const startY = touchStartPosition.current?.y || 0;
+                                        const moveX = Math.abs(touch.clientX - startX);
+                                        const moveY = Math.abs(touch.clientY - startY);
+
+                                        // If moved significantly before timer fires, cancel timer (it's a scroll)
+                                        if (!isLongPressActive.current && (moveX > 10 || moveY > 10)) {
+                                            if (longPressTimer.current) {
+                                                clearTimeout(longPressTimer.current);
+                                                longPressTimer.current = null;
+                                            }
                                         }
 
-                                        const touch = e.touches[0];
-                                        const element = document.elementFromPoint(touch.clientX, touch.clientY);
-                                        const cell = element?.closest('td[data-col]');
-                                        if (cell) {
-                                            const col = parseInt(cell.getAttribute('data-col') || '0');
-                                            const row = parseInt(cell.getAttribute('data-row') || '0');
-                                            handleMouseEnter(col, row);
+                                        // If Long Press IS active, lock scroll and update selection
+                                        if (isLongPressActive.current) {
+                                            if (e.cancelable) e.preventDefault();
+
+                                            const element = document.elementFromPoint(touch.clientX, touch.clientY);
+                                            const cell = element?.closest('td[data-col]');
+                                            if (cell) {
+                                                const col = parseInt(cell.getAttribute('data-col') || '0');
+                                                const row = parseInt(cell.getAttribute('data-row') || '0');
+                                                handleMouseEnter(col, row);
+                                            }
                                         }
                                     }}
-                                    onTouchEnd={handleMouseUp}
+                                    onTouchEnd={() => {
+                                        if (longPressTimer.current) {
+                                            clearTimeout(longPressTimer.current);
+                                            longPressTimer.current = null;
+                                        }
+
+                                        if (isLongPressActive.current) {
+                                            handleMouseUp();
+                                            isLongPressActive.current = false;
+                                        }
+                                        // If NOT long press, native Click event will handle single selection
+                                    }}
                                 >
                                     {slots.map((slot, rowIndex) => (
                                         <tr key={rowIndex} className="border-b border-slate-200 hover:bg-slate-100 transition-colors h-8">
