@@ -494,7 +494,7 @@ export function SmartCalendar() {
                                                         data-col={colIndex}
                                                         data-row={rowIndex}
                                                         className={clsx(
-                                                            "p-0 border-r border-slate-200 relative h-8 cursor-pointer group transition-colors touch-none",
+                                                            "p-0 border-r border-slate-200 relative h-8 cursor-pointer group transition-colors",
                                                             colIndex === appDay && "bg-emerald-50/50 border-x border-emerald-100"
                                                         )}
                                                         onMouseDown={() => handleMouseDown(colIndex, rowIndex)}
