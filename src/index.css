@@ -4,7 +4,7 @@
 
   html,
   body {
-    @apply bg-slate-50 text-slate-900 antialiased font-sans overflow-x-hidden imp-overscroll-none;
+    @apply bg-slate-50 text-slate-900 antialiased font-sans overflow-x-hidden;
     overscroll-behavior: none;
     touch-action: pan-y;
     /* Allow vertical scroll, but prevent horizontal swipe nav */
