@@ -29,7 +29,7 @@ export function SmartCalendar() {
     const [selectionEnd, setSelectionEnd] = useState<{ col: number, row: number } | null>(null);
 
     // Touch / Long Press State
-    const longPressTimer = useRef<NodeJS.Timeout | null>(null);
+    const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const isLongPressActive = useRef(false);
     const touchStartPosition = useRef<{ x: number, y: number } | null>(null);
 
