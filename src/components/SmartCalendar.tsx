@@ -244,67 +244,105 @@ export function SmartCalendar() {
         const tbody = tbodyRef.current;
         if (!tbody) return;
 
-        let scrollMode: 'select' | 'scroll' | null = null;
+        let isTrackingSelection = false;
+        let longPressTimer: number | null = null;
+        let isScrolling = false;
 
         const handleTouchStart = (e: TouchEvent) => {
-            const touch = e.touches[0];
-            touchStartPosition.current = { x: touch.clientX, y: touch.clientY };
-            scrollMode = null; // Reset mode
+            // View Mode: Always allow scroll, never select via touch
+            if (isLocked) {
+                isTrackingSelection = false;
+                return;
+            }
 
-            // Immediate selection on start
+            const touch = e.touches[0];
             const element = document.elementFromPoint(touch.clientX, touch.clientY);
             const cell = element?.closest('td[data-col]');
+
             if (cell) {
-                const col = parseInt(cell.getAttribute('data-col') || '0');
-                const row = parseInt(cell.getAttribute('data-row') || '0');
-                handleMouseDown(col, row);
+                // Prepare for potential selection, but don't start yet (allow scrolling first)
+                isScrolling = false;
+                touchStartPosition.current = { x: touch.clientX, y: touch.clientY };
+
+                // Start Long Press Timer
+                longPressTimer = window.setTimeout(() => {
+                    if (!isScrolling) {
+                        isTrackingSelection = true;
+                        // Haptic feedback if available (optional)
+                        if (navigator.vibrate) navigator.vibrate(50);
+
+                        // Start Selection
+                        const col = parseInt(cell.getAttribute('data-col') || '0');
+                        const row = parseInt(cell.getAttribute('data-row') || '0');
+                        handleMouseDown(col, row);
+                    }
+                }, 500); // 500ms Threshold
             }
         };
 
         const handleTouchMove = (e: TouchEvent) => {
+            if (isLocked) return;
+
             const touch = e.touches[0];
-            const startY = touchStartPosition.current?.y || 0;
-            const currentY = touch.clientY;
-            const deltaY = currentY - startY;
 
-            // Determine mode if not set
-            if (!scrollMode) {
-                if (Math.abs(deltaY) > 5) {
-                    // Finger moves DOWN (Positive Delta) -> Select Mode (Select forwards)
-                    // Finger moves UP (Negative Delta) -> Scroll Mode (See content below)
-                    scrollMode = deltaY > 0 ? 'select' : 'scroll';
-                }
-            }
+            if (isTrackingSelection) {
+                // We are in SELECTION mode -> Block Scroll
+                if (e.cancelable) e.preventDefault();
 
-            if (scrollMode === 'select') {
-                if (e.cancelable) e.preventDefault(); // STOP SCROLLING
                 const element = document.elementFromPoint(touch.clientX, touch.clientY);
                 const cell = element?.closest('td[data-col]');
+
                 if (cell) {
                     const col = parseInt(cell.getAttribute('data-col') || '0');
                     const row = parseInt(cell.getAttribute('data-row') || '0');
                     handleMouseEnter(col, row);
                 }
+            } else {
+                // We are waiting/scrolling
+                if (touchStartPosition.current) {
+                    const moveX = Math.abs(touch.clientX - touchStartPosition.current.x);
+                    const moveY = Math.abs(touch.clientY - touchStartPosition.current.y);
+
+                    // If moved significantly, cancel long press
+                    if (moveX > 10 || moveY > 10) {
+                        isScrolling = true;
+                        if (longPressTimer) {
+                            window.clearTimeout(longPressTimer);
+                            longPressTimer = null;
+                        }
+                    }
+                }
             }
-            // If scrollMode === 'scroll', simply do nothing and let browser handling scrolling
         };
 
         const handleTouchEnd = () => {
-            handleMouseUp();
-            scrollMode = null;
+            if (longPressTimer) {
+                window.clearTimeout(longPressTimer);
+                longPressTimer = null;
+            }
+
+            if (isTrackingSelection) {
+                handleMouseUp();
+                isTrackingSelection = false;
+            }
+            // Reset
+            touchStartPosition.current = null;
+            isScrolling = false;
         };
 
         // Add listeners with passive: false for touchmove to allow preventing default
         tbody.addEventListener('touchstart', handleTouchStart, { passive: true });
         tbody.addEventListener('touchmove', handleTouchMove, { passive: false });
         tbody.addEventListener('touchend', handleTouchEnd);
+        tbody.addEventListener('touchcancel', handleTouchEnd);
 
         return () => {
             tbody.removeEventListener('touchstart', handleTouchStart);
             tbody.removeEventListener('touchmove', handleTouchMove);
             tbody.removeEventListener('touchend', handleTouchEnd);
+            tbody.removeEventListener('touchcancel', handleTouchEnd);
         };
-    }, [handleMouseDown, handleMouseEnter, handleMouseUp]);
+    }, [handleMouseDown, handleMouseEnter, handleMouseUp, isLocked]);
 
     const slots = [];
     let currentMin = config.startHour * 60;
@@ -496,7 +534,7 @@ export function SmartCalendar() {
                 </div>
 
                 {/* Grid */}
-                <div ref={containerRef} className="flex-1 overflow-auto p-0 pt-0 custom-scrollbar overscroll-y-none overscroll-x-none">
+                <div ref={containerRef} className="flex-1 overflow-auto p-0 pt-0 custom-scrollbar overscroll-x-none">
                     <div className={clsx("glass-panel p-1 relative select-none transition-all duration-500 mx-auto w-full max-w-none mb-16")}>
                         {/* Real-time Arrow */}
                         {isTimeVisible && (
