@@ -471,7 +471,7 @@ export function SmartCalendar() {
                                                                 }
                                                             }
                                                         }}
-                                                        onTouchEnd={(e) => {
+                                                        onTouchEnd={() => {
                                                             if (isLocked) return;
                                                             // e.preventDefault();
                                                             handleMouseUp();
