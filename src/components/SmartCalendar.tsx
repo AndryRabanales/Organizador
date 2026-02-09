@@ -508,7 +508,7 @@ export function SmartCalendar() {
                 </div>
 
                 {/* Grid */}
-                <div ref={containerRef} className="flex-1 overflow-auto p-0 pt-0 custom-scrollbar">
+                <div ref={containerRef} className="flex-1 overflow-auto p-0 pt-0 custom-scrollbar overscroll-y-none overscroll-x-none">
                     <div className={clsx("glass-panel p-1 relative select-none transition-all duration-500 mx-auto w-full max-w-none mb-16")}>
                         {/* Real-time Arrow */}
                         {isTimeVisible && (
@@ -523,7 +523,7 @@ export function SmartCalendar() {
                             </div>
                         )}
 
-                        <div className="overflow-x-auto relative z-10">
+                        <div className="overflow-x-auto relative z-10 overscroll-x-none">
                             <table className="w-full text-sm border-collapse">
                                 <thead>
                                     <tr>
