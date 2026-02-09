@@ -139,6 +139,22 @@ export function SmartCalendar() {
     const [confirmModal, setConfirmModal] = useState<{ message: string, onConfirm: () => void, onCancel?: () => void } | null>(null);
     const [activeBottomPanel, setActiveBottomPanel] = useState<'none' | 'config' | 'story'>('none');
 
+    // --- AUTO SCROLL LOGIC ---
+    const [autoScrollSpeed, setAutoScrollSpeed] = useState(0);
+    // Logic for auto-scrolling containerRef
+    useEffect(() => {
+        if (autoScrollSpeed === 0) return;
+        let animationFrameId: number;
+        const scrollLoop = () => {
+            if (containerRef.current) { // Using standard containerRef
+                containerRef.current.scrollTop += autoScrollSpeed;
+            }
+            animationFrameId = requestAnimationFrame(scrollLoop);
+        };
+        animationFrameId = requestAnimationFrame(scrollLoop);
+        return () => cancelAnimationFrame(animationFrameId);
+    }, [autoScrollSpeed]);
+
     // Drag State
     const [draggedTab, setDraggedTab] = useState<string | null>(null);
 
@@ -433,11 +449,25 @@ export function SmartCalendar() {
             const touch = e.touches[0];
 
             if (isTrackingSelection) {
-                // We are in SELECTION mode -> Block Scroll
-                if (e.cancelable) e.preventDefault();
+                // We are in SELECTION mode
+                // REMOVED e.preventDefault() to allow Native Scroll & Zoom
 
                 const element = document.elementFromPoint(touch.clientX, touch.clientY);
                 const cell = element?.closest('td[data-col]');
+
+                // Auto-Scroll Logic
+                const threshold = 100;
+                const maxSpeed = 20;
+                const distTop = touch.clientY;
+                const distBottom = window.innerHeight - touch.clientY;
+
+                if (distTop < threshold) {
+                    setAutoScrollSpeed(-maxSpeed * ((threshold - distTop) / threshold));
+                } else if (distBottom < threshold) {
+                    setAutoScrollSpeed(maxSpeed * ((threshold - distBottom) / threshold));
+                } else {
+                    setAutoScrollSpeed(0);
+                }
 
                 if (cell) {
                     const col = parseInt(cell.getAttribute('data-col') || '0');
@@ -469,6 +499,7 @@ export function SmartCalendar() {
             }
 
             if (isTrackingSelection) {
+                setAutoScrollSpeed(0); // Stop Scroll
                 if (onMouseUpRef.current) onMouseUpRef.current();
                 isTrackingSelection = false;
             }
@@ -658,11 +689,7 @@ export function SmartCalendar() {
                     activeBottomPanel === 'config' && "hidden"
                 )}>
                     <div className="flex items-center gap-2">
-                        <h1 className="text-xl font-black text-slate-900 tracking-tighter drop-shadow-sm">
-                            <span className="text-emerald-600">{t('appTitle')}</span> {t('planner')}
-                        </h1>
-
-
+                        {/* Title Removed */}
                     </div>
                     <div className="flex items-center gap-4">
                         {hasUnsavedChanges && (
@@ -675,9 +702,7 @@ export function SmartCalendar() {
                                 </Button>
                             </div>
                         )}
-                        <div className="px-4 py-1.5 rounded-xl bg-white/80 border border-slate-200 font-mono text-emerald-600 font-bold text-sm backdrop-blur shadow-sm">
-                            {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                        </div>
+                        {/* Time Removed */}
                         <button
                             onClick={handleLogout}
                             className="p-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 transition-all hover:scale-105 active:scale-95"
