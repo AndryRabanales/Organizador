@@ -96,6 +96,9 @@ export function SmartCalendar() {
         setSelectionStart(start);
         setSelectionEnd(start); // Init end same as start
 
+        // BLOCK page scroll during selection
+        document.body.style.overflow = 'hidden';
+
         // Sync refs
         selectionStartRef.current = start;
         selectionEndRef.current = start;
@@ -114,6 +117,9 @@ export function SmartCalendar() {
     const handleMouseUp = () => {
         // Stop auto-scroll
         setAutoScrollSpeed(0);
+
+        // RESTORE page scroll
+        document.body.style.overflow = '';
 
         // Use refs to get the latest state without waiting for re-renders
         const start = selectionStartRef.current;
@@ -206,8 +212,8 @@ export function SmartCalendar() {
         const handleGlobalTouchMove = (e: TouchEvent) => {
             if (isLocked || !selectionStartRef.current) return;
 
-            // Allow native scrolling to work - auto-scroll will enhance it
-            // Removed e.preventDefault() to let browser handle scroll naturally
+            // CRITICAL: Prevent page scroll, only allow calendar container scroll
+            if (e.cancelable) e.preventDefault();
 
             const touch = e.touches[0];
 
