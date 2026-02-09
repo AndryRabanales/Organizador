@@ -434,7 +434,7 @@ export function SmartCalendar() {
                                                         className="p-0 border-r border-slate-800/30 relative h-8 cursor-pointer group touch-none" // touch-none prevents scroll
                                                         onMouseDown={() => handleMouseDown(colIndex, rowIndex)}
                                                         onMouseEnter={() => handleMouseEnter(colIndex, rowIndex)}
-                                                        onTouchStart={(e) => {
+                                                        onTouchStart={() => {
                                                             if (isLocked) return;
                                                             // Prevent default to stop scrolling and mouse emulation (avoids double events)
                                                             // However, if we want scrolling to work when NOT selecting... 
