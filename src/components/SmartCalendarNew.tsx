@@ -194,6 +194,76 @@ export function SmartCalendar() {
         return () => window.removeEventListener('mouseup', handleMouseUp);
     }, [selectedBrush, schedule, isLocked]); // Removed selectionStart/End dependencies to prevent churn
 
+    // Global Touch Controller (for Auto-Scroll "Word-like" behavior on Mobile)
+    useEffect(() => {
+        const handleGlobalTouchMove = (e: TouchEvent) => {
+            if (isLocked || !selectionStartRef.current) return;
+
+            // CRITICAL: Prevent native scrolling to allow "drag to scroll" logic
+            if (e.cancelable) e.preventDefault();
+
+            const touch = e.touches[0];
+
+            // 1. Auto-Scroll Logic
+            if (scrollContainerRef.current) {
+                const { top, bottom } = scrollContainerRef.current.getBoundingClientRect();
+                const viewportHeight = window.innerHeight;
+                const effectiveBottom = Math.min(bottom, viewportHeight);
+
+                const threshold = 100; // Large threshold for mobile
+                const maxSpeed = 25;   // Faster speed
+
+                if (touch.clientY < top + threshold) {
+                    const intensity = (top + threshold - touch.clientY) / threshold;
+                    setAutoScrollSpeed(-maxSpeed * intensity);
+                } else if (touch.clientY > effectiveBottom - threshold) {
+                    const intensity = (touch.clientY - (effectiveBottom - threshold)) / threshold;
+                    setAutoScrollSpeed(maxSpeed * intensity);
+                } else {
+                    setAutoScrollSpeed(0);
+                }
+            }
+
+            // 2. Selection Update Logic (elementFromPoint)
+            const target = document.elementFromPoint(touch.clientX, touch.clientY);
+            if (target) {
+                const cell = target.closest('td');
+                if (cell) {
+                    const c = cell.getAttribute('data-col');
+                    const r = cell.getAttribute('data-row');
+                    if (c && r) {
+                        const col = parseInt(c);
+                        const row = parseInt(r);
+
+                        const currentEnd = selectionEndRef.current;
+                        if (!currentEnd || currentEnd.col !== col || currentEnd.row !== row) {
+                            handleMouseEnter(col, row);
+                        }
+                    }
+                }
+            }
+        };
+
+        const handleGlobalTouchEnd = () => {
+            // Clean up on lift
+            if (selectionStartRef.current) {
+                handleMouseUp();
+                setAutoScrollSpeed(0);
+            }
+        };
+
+        // Attach non-passive listener to allow preventDefault()
+        // We attach to window or document to catch drags that go "off grid"
+        window.addEventListener('touchmove', handleGlobalTouchMove, { passive: false });
+        window.addEventListener('touchend', handleGlobalTouchEnd);
+
+        return () => {
+            window.removeEventListener('touchmove', handleGlobalTouchMove);
+            window.removeEventListener('touchend', handleGlobalTouchEnd);
+        };
+    }, [isLocked]); // Re-attach if lock status changes (though refs handle state)
+
+
     // Touch Auto-Scroll Logic integration
     // We'll update the 'active touch' loop in a bit to also set autoScrollSpeed
     // But since touchmove is handled inline, we can add it there or use a similar global effect if we track touch position.
@@ -499,70 +569,10 @@ export function SmartCalendar() {
                                                         onMouseEnter={() => handleMouseEnter(colIndex, rowIndex)}
                                                         onTouchStart={() => {
                                                             if (isLocked) return;
-                                                            // Prevent default to stop scrolling and mouse emulation (avoids double events)
-                                                            // However, if we want scrolling to work when NOT selecting... 
-                                                            // For now, we prioritize SELECTION on the grid.
-                                                            // e.preventDefault(); 
-                                                            // Actually, let's allow scroll unless we decide to drag?
-                                                            // But to ensure 'touchstart' -> 'touchmove' works seamlessly for drawing:
-                                                            // modifying styles to touch-action: none via class 'touch-none' is best.
-
+                                                            // We handle selection start here, but the 'move' will be global
                                                             handleMouseDown(colIndex, rowIndex);
                                                         }}
-                                                        onTouchMove={(e) => {
-                                                            if (isLocked || !selectionStartRef.current) return;
-                                                            // e.preventDefault(); // Try to block scroll if we are selecting
-
-                                                            const touch = e.touches[0];
-
-                                                            // Auto-Scroll Check for Touch
-                                                            if (scrollContainerRef.current) {
-                                                                const { top, bottom } = scrollContainerRef.current.getBoundingClientRect();
-                                                                // Use window height to ensure we catch drags at the very bottom of screen
-                                                                const viewportHeight = window.innerHeight;
-                                                                const effectiveBottom = Math.min(bottom, viewportHeight);
-
-                                                                // Increased threshold for mobile (fingers are big, UI bars exist)
-                                                                const threshold = 100;
-                                                                const maxSpeed = 20; // Slightly faster for mobile feel
-
-                                                                if (touch.clientY < top + threshold) {
-                                                                    const intensity = (top + threshold - touch.clientY) / threshold;
-                                                                    setAutoScrollSpeed(-maxSpeed * intensity);
-                                                                } else if (touch.clientY > effectiveBottom - threshold) {
-                                                                    const intensity = (touch.clientY - (effectiveBottom - threshold)) / threshold;
-                                                                    setAutoScrollSpeed(maxSpeed * intensity);
-                                                                } else {
-                                                                    setAutoScrollSpeed(0);
-                                                                }
-                                                            }
-
-                                                            const target = document.elementFromPoint(touch.clientX, touch.clientY);
-                                                            if (target) {
-                                                                // Use closest 'td' to find the cell, in case we hit the span or div inside
-                                                                const cell = target.closest('td');
-                                                                if (cell) {
-                                                                    const c = cell.getAttribute('data-col');
-                                                                    const r = cell.getAttribute('data-row');
-                                                                    if (c && r) {
-                                                                        const col = parseInt(c);
-                                                                        const row = parseInt(r);
-
-                                                                        // Only update if changed
-                                                                        const currentEnd = selectionEndRef.current;
-                                                                        if (!currentEnd || currentEnd.col !== col || currentEnd.row !== row) {
-                                                                            handleMouseEnter(col, row);
-                                                                        }
-                                                                    }
-                                                                }
-                                                            }
-                                                        }}
-                                                        onTouchEnd={() => {
-                                                            setAutoScrollSpeed(0); // Stop scroll on lift
-                                                            if (isLocked) return;
-                                                            // e.preventDefault();
-                                                            handleMouseUp();
-                                                        }}
+                                                    // onTouchMove and onTouchEnd handled globally now to support smooth auto-scroll
                                                     >
                                                         {/* Committed Layer */}
                                                         {labelObj && (
