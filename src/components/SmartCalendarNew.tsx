@@ -205,20 +205,21 @@ export function SmartCalendar() {
 
             const touch = e.touches[0];
 
-            // 1. Auto-Scroll Logic
+            // 1. Auto-Scroll Logic (Viewport-Based - Simple & Reliable)
             if (scrollContainerRef.current) {
-                const { top, bottom } = scrollContainerRef.current.getBoundingClientRect();
-                const viewportHeight = window.innerHeight;
-                const effectiveBottom = Math.min(bottom, viewportHeight);
+                const threshold = 120; // Distance from screen edge to trigger scroll
+                const maxSpeed = 30;   // Scroll speed
 
-                const threshold = 100; // Large threshold for mobile
-                const maxSpeed = 25;   // Faster speed
+                const distanceFromTop = touch.clientY;
+                const distanceFromBottom = window.innerHeight - touch.clientY;
 
-                if (touch.clientY < top + threshold) {
-                    const intensity = (top + threshold - touch.clientY) / threshold;
+                if (distanceFromTop < threshold) {
+                    // Near top of screen -> scroll up
+                    const intensity = (threshold - distanceFromTop) / threshold;
                     setAutoScrollSpeed(-maxSpeed * intensity);
-                } else if (touch.clientY > effectiveBottom - threshold) {
-                    const intensity = (touch.clientY - (effectiveBottom - threshold)) / threshold;
+                } else if (distanceFromBottom < threshold) {
+                    // Near bottom of screen -> scroll down
+                    const intensity = (threshold - distanceFromBottom) / threshold;
                     setAutoScrollSpeed(maxSpeed * intensity);
                 } else {
                     setAutoScrollSpeed(0);
