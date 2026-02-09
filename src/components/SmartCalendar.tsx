@@ -383,7 +383,7 @@ export function SmartCalendar() {
     const viewingStory = stories.find(s => s.id === viewingStoryId);
 
     return (
-        <div className="flex flex-col h-screen w-full relative bg-slate-50 overflow-hidden">
+        <div className="flex flex-col h-[100dvh] w-full relative bg-slate-50 overflow-hidden">
             {useCalendarStore(state => state.isLoading) && (
                 <div className="absolute inset-0 z-[200] bg-white flex flex-col items-center justify-center gap-4 animate-in fade-in duration-500">
                     <div className="w-8 h-8 rounded-full border-4 border-emerald-500/30 border-t-emerald-500 animate-spin" />
@@ -638,7 +638,7 @@ export function SmartCalendar() {
 
             {/* --- BOTTOM PANEL: CONFIG & STORIES --- */}
             <div className={clsx(
-                "flex-none bg-white/95 backdrop-blur-xl border-t border-slate-200 transition-all duration-300 ease-in-out relative z-40",
+                "flex-none bg-white/95 backdrop-blur-xl border-t border-slate-200 transition-all duration-300 ease-in-out relative z-40 pb-[env(safe-area-inset-bottom)]",
                 !isLocked ? "py-2" : "py-0"
             )}>
                 {/* Toggle Handle (Absolute Top Center) */}
