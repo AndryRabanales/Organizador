@@ -79,10 +79,10 @@ const CalendarCell = memo(({
                         <button
                             onClick={(e) => { e.stopPropagation(); onNoteClick(labelObj.id, `${colIndex}-${rowIndex}`); }}
                             onMouseDown={(e) => e.stopPropagation()}
-                            className="mr-1 p-0.5 rounded hover:bg-white/50 text-slate-600 hover:text-slate-900 transition-all opacity-0 group-hover:opacity-100"
+                            className="absolute top-0 right-0 p-0.5 m-0.5 rounded hover:bg-white/50 text-slate-600/70 hover:text-slate-900 transition-all z-20"
                             title={t('notes')}
                         >
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-2.5 h-2.5">
                                 <path d="m2.695 14.762-1.262 3.155a.5.5 0 0 0 .65.65l3.155-1.262a4 4 0 0 0 1.343-.886L17.5 5.501a2.121 2.121 0 0 0-3-3L3.58 13.419a4 4 0 0 0-.885 1.343Z" />
                             </svg>
                         </button>
