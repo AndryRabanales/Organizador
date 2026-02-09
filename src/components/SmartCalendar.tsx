@@ -792,14 +792,20 @@ export function SmartCalendar() {
                                 <thead>
                                     <tr>
                                         <th className="py-2 px-0 text-center w-10 text-slate-500 font-mono text-[9px] bg-white/90 backdrop-blur border-b border-slate-200">{t('time')}</th>
-                                        {DAYS.map((day, index) => (
-                                            <th key={day} className={clsx(
-                                                "py-1 px-1 text-center font-normal text-sm tracking-tighter border-b backdrop-blur transition-colors",
-                                                index === appDay
-                                                    ? "text-emerald-700 bg-emerald-50 border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.1)]"
-                                                    : "text-slate-600 border-slate-200 bg-white/90"
-                                            )}>{day}</th>
-                                        ))}
+                                        {DAYS.map((day, index) => {
+                                            // Focus Mode: Show ONLY current day
+                                            if (appMode === 'focus' && index !== currentDayIndex) return null;
+
+                                            return (
+                                                <th key={day} className={clsx(
+                                                    "py-1 px-1 text-center font-normal text-sm tracking-tighter border-b backdrop-blur transition-colors",
+                                                    appMode === 'focus' && "text-lg font-bold", // Larger text in Focus Mode
+                                                    index === appDay
+                                                        ? "text-emerald-700 bg-emerald-50 border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.1)]"
+                                                        : "text-slate-600 border-slate-200 bg-white/90"
+                                                )}>{day}</th>
+                                            );
+                                        })}
                                     </tr>
                                 </thead>
                                 <tbody ref={tbodyRef}>
@@ -809,6 +815,9 @@ export function SmartCalendar() {
                                                 {slot.label}
                                             </td>
                                             {DAYS.map((_, colIndex) => {
+                                                // Focus Mode: Show ONLY current day
+                                                if (appMode === 'focus' && colIndex !== currentDayIndex) return null;
+
                                                 const cellKey = `${colIndex}-${rowIndex}`;
                                                 // Coerce undefined to null for strict type compatibility with CalendarCellProps
                                                 const labelId = schedule[cellKey] || null;
