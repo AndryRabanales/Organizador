@@ -62,6 +62,7 @@ export function SmartCalendar() {
 
     // Auto-scroll ref
     const scrollContainerRef = useRef<HTMLDivElement>(null);
+    const tableRef = useRef<HTMLTableElement>(null);
     const [autoScrollSpeed, setAutoScrollSpeed] = useState<number>(0);
 
     // Auto-scroll logic
@@ -224,8 +225,19 @@ export function SmartCalendar() {
                 }
             }
 
-            // 2. Selection Update Logic (elementFromPoint)
-            const target = document.elementFromPoint(touch.clientX, touch.clientY);
+            // 2. Selection Update Logic (elementFromPoint with Coordinate Clamping)
+            // Clamp coordinates to table bounds to handle dragging into padding
+            let clampedX = touch.clientX;
+            let clampedY = touch.clientY;
+
+            if (tableRef.current) {
+                const tableBounds = tableRef.current.getBoundingClientRect();
+                // Clamp to be strictly within table (with 1px margin to ensure we hit a cell)
+                clampedX = Math.max(tableBounds.left + 1, Math.min(touch.clientX, tableBounds.right - 1));
+                clampedY = Math.max(tableBounds.top + 1, Math.min(touch.clientY, tableBounds.bottom - 1));
+            }
+
+            const target = document.elementFromPoint(clampedX, clampedY);
             if (target) {
                 const cell = target.closest('td');
                 if (cell) {
@@ -522,7 +534,7 @@ export function SmartCalendar() {
                         )}
 
                         <div className="overflow-x-auto relative z-10">
-                            <table className="w-full text-sm border-collapse">
+                            <table ref={tableRef} className="w-full text-sm border-collapse">
                                 <thead>
                                     <tr>
                                         <th className="p-2 text-left w-20 text-slate-500 font-mono text-xs bg-slate-900/50 backdrop-blur">TIME</th>
