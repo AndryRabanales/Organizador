@@ -60,6 +60,28 @@ export function SmartCalendar() {
         }
     };
 
+    // Auto-scroll ref
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
+    const [autoScrollSpeed, setAutoScrollSpeed] = useState<number>(0);
+
+    // Auto-scroll logic
+    useEffect(() => {
+        if (autoScrollSpeed === 0) return;
+
+        let animationFrameId: number;
+
+        const scrollLoop = () => {
+            if (scrollContainerRef.current) {
+                scrollContainerRef.current.scrollTop += autoScrollSpeed;
+            }
+            animationFrameId = requestAnimationFrame(scrollLoop);
+        };
+
+        animationFrameId = requestAnimationFrame(scrollLoop);
+        return () => cancelAnimationFrame(animationFrameId);
+    }, [autoScrollSpeed]);
+
+
     // Drag Logic
     const handleMouseDown = (col: number, row: number) => {
         if (isLocked) return;
@@ -83,6 +105,9 @@ export function SmartCalendar() {
     };
 
     const handleMouseUp = () => {
+        // Stop auto-scroll
+        setAutoScrollSpeed(0);
+
         // Use refs to get the latest state without waiting for re-renders
         const start = selectionStartRef.current;
         const end = selectionEndRef.current;
@@ -132,13 +157,47 @@ export function SmartCalendar() {
         selectionEndRef.current = null;
     };
 
+    // Global Auto-scroll check on mouse move (only if selecting)
+    useEffect(() => {
+        const handleMouseMove = (e: MouseEvent) => {
+            if (!selectionStartRef.current || isLocked) {
+                setAutoScrollSpeed(0);
+                return;
+            }
+
+            if (scrollContainerRef.current) {
+                const { top, bottom } = scrollContainerRef.current.getBoundingClientRect();
+                const threshold = 50; // px from edge
+                const maxSpeed = 15; // pixels per frame
+
+                if (e.clientY < top + threshold) {
+                    // Scroll Up
+                    const intensity = (top + threshold - e.clientY) / threshold;
+                    setAutoScrollSpeed(-maxSpeed * intensity);
+                } else if (e.clientY > bottom - threshold) {
+                    // Scroll Down
+                    const intensity = (e.clientY - (bottom - threshold)) / threshold;
+                    setAutoScrollSpeed(maxSpeed * intensity);
+                } else {
+                    setAutoScrollSpeed(0);
+                }
+            }
+        };
+
+        window.addEventListener('mousemove', handleMouseMove);
+        return () => window.removeEventListener('mousemove', handleMouseMove);
+    }, [isLocked]);
+
     // Attach global mouseup
     useEffect(() => {
         window.addEventListener('mouseup', handleMouseUp);
         return () => window.removeEventListener('mouseup', handleMouseUp);
     }, [selectedBrush, schedule, isLocked]); // Removed selectionStart/End dependencies to prevent churn
 
-
+    // Touch Auto-Scroll Logic integration
+    // We'll update the 'active touch' loop in a bit to also set autoScrollSpeed
+    // But since touchmove is handled inline, we can add it there or use a similar global effect if we track touch position.
+    // simpler to add to the existing onTouchMove handler logic or a ref tracking current touch Y.
     // --- Calculations ---
     // Helper to check if a cell is inside the CURRENT selection rect (for visual preview)
     const isCellSelected = (col: number, row: number) => {
@@ -371,7 +430,10 @@ export function SmartCalendar() {
                 </div>
 
                 {/* Calendar Grid Container */}
-                <div className="flex-1 overflow-auto p-6 pt-0 custom-scrollbar">
+                <div
+                    ref={scrollContainerRef}
+                    className="flex-1 overflow-auto p-6 pt-0 custom-scrollbar"
+                >
                     <div className={clsx("glass-panel p-1 relative select-none transition-all duration-500", !isLocked ? "ml-4" : "mx-auto max-w-6xl")}>
                         {/* Lock Overlay on Grid (Only necessary if we want to block interaction, but isLocked handles logic) */}
                         {isLocked && <div className="absolute inset-0 z-50 bg-transparent" />}
@@ -451,6 +513,24 @@ export function SmartCalendar() {
                                                             // e.preventDefault(); // Try to block scroll if we are selecting
 
                                                             const touch = e.touches[0];
+
+                                                            // Auto-Scroll Check for Touch
+                                                            if (scrollContainerRef.current) {
+                                                                const { top, bottom } = scrollContainerRef.current.getBoundingClientRect();
+                                                                const threshold = 50;
+                                                                const maxSpeed = 15;
+
+                                                                if (touch.clientY < top + threshold) {
+                                                                    const intensity = (top + threshold - touch.clientY) / threshold;
+                                                                    setAutoScrollSpeed(-maxSpeed * intensity);
+                                                                } else if (touch.clientY > bottom - threshold) {
+                                                                    const intensity = (touch.clientY - (bottom - threshold)) / threshold;
+                                                                    setAutoScrollSpeed(maxSpeed * intensity);
+                                                                } else {
+                                                                    setAutoScrollSpeed(0);
+                                                                }
+                                                            }
+
                                                             const target = document.elementFromPoint(touch.clientX, touch.clientY);
                                                             if (target) {
                                                                 // Use closest 'td' to find the cell, in case we hit the span or div inside
@@ -472,6 +552,7 @@ export function SmartCalendar() {
                                                             }
                                                         }}
                                                         onTouchEnd={() => {
+                                                            setAutoScrollSpeed(0); // Stop scroll on lift
                                                             if (isLocked) return;
                                                             // e.preventDefault();
                                                             handleMouseUp();
