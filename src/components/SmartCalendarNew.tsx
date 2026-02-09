@@ -494,6 +494,7 @@ export function SmartCalendar() {
                                                         data-col={colIndex}
                                                         data-row={rowIndex}
                                                         className="p-0 border-r border-slate-800/30 relative h-8 cursor-pointer group touch-none" // touch-none prevents scroll
+                                                        style={{ touchAction: 'none' }} // Explicit inline for safety
                                                         onMouseDown={() => handleMouseDown(colIndex, rowIndex)}
                                                         onMouseEnter={() => handleMouseEnter(colIndex, rowIndex)}
                                                         onTouchStart={() => {
@@ -517,14 +518,19 @@ export function SmartCalendar() {
                                                             // Auto-Scroll Check for Touch
                                                             if (scrollContainerRef.current) {
                                                                 const { top, bottom } = scrollContainerRef.current.getBoundingClientRect();
-                                                                const threshold = 50;
-                                                                const maxSpeed = 15;
+                                                                // Use window height to ensure we catch drags at the very bottom of screen
+                                                                const viewportHeight = window.innerHeight;
+                                                                const effectiveBottom = Math.min(bottom, viewportHeight);
+
+                                                                // Increased threshold for mobile (fingers are big, UI bars exist)
+                                                                const threshold = 100;
+                                                                const maxSpeed = 20; // Slightly faster for mobile feel
 
                                                                 if (touch.clientY < top + threshold) {
                                                                     const intensity = (top + threshold - touch.clientY) / threshold;
                                                                     setAutoScrollSpeed(-maxSpeed * intensity);
-                                                                } else if (touch.clientY > bottom - threshold) {
-                                                                    const intensity = (touch.clientY - (bottom - threshold)) / threshold;
+                                                                } else if (touch.clientY > effectiveBottom - threshold) {
+                                                                    const intensity = (touch.clientY - (effectiveBottom - threshold)) / threshold;
                                                                     setAutoScrollSpeed(maxSpeed * intensity);
                                                                 } else {
                                                                     setAutoScrollSpeed(0);
