@@ -71,7 +71,7 @@ const CalendarCell = memo(({
                         borderColor: labelObj.color
                     }}
                 >
-                    <span className="text-[10px] font-normal tracking-tight opacity-100 px-0.5 leading-3 whitespace-normal break-words line-clamp-2 select-none" style={{ color: labelObj.color }}>
+                    <span className="text-[10px] font-normal tracking-tight opacity-100 px-0.5 pr-3 leading-3 whitespace-normal break-words line-clamp-2 select-none" style={{ color: labelObj.color }}>
                         {labelObj.name}
                     </span>
 
