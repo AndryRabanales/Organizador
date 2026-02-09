@@ -200,8 +200,8 @@ export function SmartCalendar() {
         const handleGlobalTouchMove = (e: TouchEvent) => {
             if (isLocked || !selectionStartRef.current) return;
 
-            // CRITICAL: Prevent native scrolling to allow "drag to scroll" logic
-            if (e.cancelable) e.preventDefault();
+            // Allow native scrolling to work - auto-scroll will enhance it
+            // Removed e.preventDefault() to let browser handle scroll naturally
 
             const touch = e.touches[0];
 
@@ -576,8 +576,7 @@ export function SmartCalendar() {
                                                         key={colIndex}
                                                         data-col={colIndex}
                                                         data-row={rowIndex}
-                                                        className="p-0 border-r border-slate-800/30 relative h-8 cursor-pointer group touch-none" // touch-none prevents scroll
-                                                        style={{ touchAction: 'none' }} // Explicit inline for safety
+                                                        className="p-0 border-r border-slate-800/30 relative h-8 cursor-pointer group"
                                                         onMouseDown={() => handleMouseDown(colIndex, rowIndex)}
                                                         onMouseEnter={() => handleMouseEnter(colIndex, rowIndex)}
                                                         onTouchStart={() => {
