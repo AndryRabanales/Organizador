@@ -99,6 +99,12 @@ export function SmartCalendar() {
         // BLOCK page scroll during selection
         document.body.style.overflow = 'hidden';
 
+        // TEST: Scroll down immediately to verify container can scroll
+        if (scrollContainerRef.current) {
+            console.log('🧪 TEST: Scrolling down 32px');
+            scrollContainerRef.current.scrollTop += 32;
+        }
+
         // Sync refs
         selectionStartRef.current = start;
         selectionEndRef.current = start;
