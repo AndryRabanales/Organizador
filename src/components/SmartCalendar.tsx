@@ -372,6 +372,20 @@ export function SmartCalendar() {
     // --- Native Touch Handling for Mobile Selection ---
     const tbodyRef = useRef<HTMLTableSectionElement>(null);
 
+    // Refs to keep handlers fresh without re-binding listeners
+    const onMouseDownRef = useRef(handleMouseDown);
+    const onMouseEnterRef = useRef(handleMouseEnter);
+    const onMouseUpRef = useRef(handleMouseUp);
+    const isLockedRef = useRef(isLocked);
+
+    // Update refs on every render
+    useEffect(() => {
+        onMouseDownRef.current = handleMouseDown;
+        onMouseEnterRef.current = handleMouseEnter;
+        onMouseUpRef.current = handleMouseUp;
+        isLockedRef.current = isLocked;
+    });
+
     useEffect(() => {
         const tbody = tbodyRef.current;
         if (!tbody) return;
@@ -382,7 +396,7 @@ export function SmartCalendar() {
 
         const handleTouchStart = (e: TouchEvent) => {
             // View Mode: Always allow scroll, never select via touch
-            if (isLocked) {
+            if (isLockedRef.current) {
                 isTrackingSelection = false;
                 return;
             }
@@ -406,14 +420,15 @@ export function SmartCalendar() {
                         // Start Selection
                         const col = parseInt(cell.getAttribute('data-col') || '0');
                         const row = parseInt(cell.getAttribute('data-row') || '0');
-                        handleMouseDown(col, row);
+                        // Use Ref
+                        if (onMouseDownRef.current) onMouseDownRef.current(col, row);
                     }
                 }, 500); // 500ms Threshold
             }
         };
 
         const handleTouchMove = (e: TouchEvent) => {
-            if (isLocked) return;
+            if (isLockedRef.current) return;
 
             const touch = e.touches[0];
 
@@ -427,7 +442,7 @@ export function SmartCalendar() {
                 if (cell) {
                     const col = parseInt(cell.getAttribute('data-col') || '0');
                     const row = parseInt(cell.getAttribute('data-row') || '0');
-                    handleMouseEnter(col, row);
+                    if (onMouseEnterRef.current) onMouseEnterRef.current(col, row);
                 }
             } else {
                 // We are waiting/scrolling
@@ -454,7 +469,7 @@ export function SmartCalendar() {
             }
 
             if (isTrackingSelection) {
-                handleMouseUp();
+                if (onMouseUpRef.current) onMouseUpRef.current();
                 isTrackingSelection = false;
             }
             // Reset
@@ -474,7 +489,7 @@ export function SmartCalendar() {
             tbody.removeEventListener('touchend', handleTouchEnd);
             tbody.removeEventListener('touchcancel', handleTouchEnd);
         };
-    }, [handleMouseDown, handleMouseEnter, handleMouseUp, isLocked]);
+    }, []); // Empty dependency array = listeners bound ONCE
 
     const slots = [];
     let currentMin = config.startHour * 60;
