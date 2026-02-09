@@ -217,8 +217,8 @@ export function SmartCalendar() {
         const handleGlobalTouchMove = (e: TouchEvent) => {
             if (isLocked || !selectionStartRef.current) return;
 
-            // CRITICAL: Prevent page scroll, only allow calendar container scroll
-            if (e.cancelable) e.preventDefault();
+            // ALLOW all native gestures (zoom, scroll, etc)
+            // Auto-scroll will ENHANCE natural scrolling, not replace it
 
             const touch = e.touches[0];
 
