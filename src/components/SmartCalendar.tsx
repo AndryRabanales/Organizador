@@ -139,6 +139,36 @@ export function SmartCalendar() {
     const [confirmModal, setConfirmModal] = useState<{ message: string, onConfirm: () => void, onCancel?: () => void } | null>(null);
     const [activeBottomPanel, setActiveBottomPanel] = useState<'none' | 'config' | 'story'>('none');
 
+    // --- APP MODES (View -> Edit -> Focus) ---
+    const [appMode, setAppMode] = useState<'view' | 'edit' | 'focus'>('view');
+
+    // Sync appMode with store's isLocked
+    useEffect(() => {
+        const shouldBeLocked = appMode !== 'edit';
+        if (isLocked !== shouldBeLocked) {
+            // We use the store's toggleLock because setIsLocked might not be exposed directly
+            // If toggleLock just flips the boolean, we need to be careful.
+            // But looking at the store usage, we should probably check if we can setIsLocked.
+            // If not, we rely on toggleLock IF the state doesn't match.
+            toggleLock();
+        }
+    }, [appMode]);
+
+    // Cycle Modes: View -> Edit -> Focus -> View
+    const cycleMode = () => {
+        setAppMode(prev => {
+            if (prev === 'view') return 'edit';
+            if (prev === 'edit') return 'focus';
+            return 'view';
+        });
+    };
+
+    // Calculate Current Day Index (0=Monday, 6=Sunday)
+    const currentDayIndex = useMemo(() => {
+        const day = new Date().getDay(); // 0=Sun, 1=Mon...
+        return (day + 6) % 7;
+    }, []);
+
     // --- AUTO SCROLL LOGIC ---
     const [autoScrollSpeed, setAutoScrollSpeed] = useState(0);
     // Logic for auto-scrolling containerRef
@@ -830,24 +860,30 @@ export function SmartCalendar() {
                 {/* Toggle Handle (Absolute Top Center) */}
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full z-50">
                     <button
-                        onClick={toggleLock}
+                        onClick={cycleMode} // Cycle through 3 modes
                         className={clsx(
                             "flex items-center justify-center w-16 h-8 rounded-t-xl border-t border-x border-slate-300 backdrop-blur-md transition-all duration-300 shadow-[0_-5px_15px_rgba(0,0,0,0.1)]",
-                            !isLocked
-                                ? "bg-white text-slate-400 border-b-white translate-y-[1px]"
-                                : "bg-white/80 text-emerald-600 hover:text-emerald-500 hover:bg-slate-50 border-b-slate-200"
+                            appMode === 'edit'
+                                ? "bg-white text-emerald-600 border-b-white translate-y-[1px]"
+                                : "bg-white/80 text-slate-500 hover:text-slate-700 hover:bg-slate-50 border-b-slate-200"
                         )}
-                        title={!isLocked ? t('settingsClose') : t('settingsOpen')}
+                        title={`Mode: ${appMode.toUpperCase()}`}
                     >
-                        {!isLocked ? (
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                        {appMode === 'view' && ( // Icon for "Go to Edit"
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
                             </svg>
-                        ) : (
-                            <div className="flex flex-col items-center gap-0.5 animate-pulse">
-                                <div className="w-8 h-1 rounded-full bg-emerald-500/50" />
-                                <div className="w-5 h-1 rounded-full bg-emerald-500/30" />
-                            </div>
+                        )}
+                        {appMode === 'edit' && ( // Icon for "Go to Focus"
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                            </svg>
+                        )}
+                        {appMode === 'focus' && ( // Icon for "Go to View"
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z" />
+                            </svg>
                         )}
                     </button>
                 </div>
