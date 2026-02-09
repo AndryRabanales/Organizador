@@ -688,10 +688,8 @@ export function SmartCalendar() {
                     "flex-none p-4 flex justify-between items-center z-30 bg-gradient-to-b from-white to-transparent",
                     activeBottomPanel === 'config' && "hidden"
                 )}>
-                    <div className="flex items-center gap-2">
-                        {/* Title Removed */}
-                    </div>
-                    <div className="flex items-center gap-4">
+                    {/* Header Cleaned Up */}
+                    <div className="flex items-center gap-4 ml-auto">
                         {hasUnsavedChanges && (
                             <div className="flex items-center gap-2 animate-in fade-in slide-in-from-top-2 duration-300">
                                 <Button size="sm" variant="ghost" onClick={discardChanges} className="text-red-500 hover:text-red-600 hover:bg-red-50">
