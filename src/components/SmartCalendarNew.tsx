@@ -96,8 +96,8 @@ export function SmartCalendar() {
         setSelectionStart(start);
         setSelectionEnd(start);
 
-        // BLOCK page scroll during selection
-        document.body.style.overflow = 'hidden';
+        // DON'T block body overflow - let calendar container scroll freely
+        // We'll prevent default on touchmove instead
 
         // TEST: Scroll down immediately to verify container can scroll
         if (scrollContainerRef.current) {
@@ -124,8 +124,7 @@ export function SmartCalendar() {
         // Stop auto-scroll
         setAutoScrollSpeed(0);
 
-        // RESTORE page scroll
-        document.body.style.overflow = '';
+        // No need to restore body overflow since we're not blocking it
 
         // Use refs to get the latest state without waiting for re-renders
         const start = selectionStartRef.current;
