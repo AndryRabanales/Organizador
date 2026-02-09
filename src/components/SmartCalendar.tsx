@@ -270,9 +270,9 @@ export function SmartCalendar() {
             // Determine mode if not set
             if (!scrollMode) {
                 if (Math.abs(deltaY) > 5) {
-                    // Finger moves UP (Negative Delta) -> Select Mode
-                    // Finger moves DOWN (Positive Delta) -> Scroll Mode
-                    scrollMode = deltaY < 0 ? 'select' : 'scroll';
+                    // Finger moves DOWN (Positive Delta) -> Select Mode (Select forwards)
+                    // Finger moves UP (Negative Delta) -> Scroll Mode (See content below)
+                    scrollMode = deltaY > 0 ? 'select' : 'scroll';
                 }
             }
 
