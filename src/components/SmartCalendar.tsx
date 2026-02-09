@@ -1,13 +1,131 @@
 import { useCalendarStore, DEFAULT_LABELS } from '../store/calendarStore';
 import { Button } from './Button';
 import clsx from 'clsx';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, memo, useCallback, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { WordEditor } from './WordEditor';
 
 import { useLanguage } from '../hooks/useLanguage';
 
-// Removed static DAYS in favor of dynamic DAYS from hook
+// Optimizing Cell Performance
+interface CalendarCellProps {
+    colIndex: number;
+    rowIndex: number;
+    labelId: string | null;
+    labelObj: any;
+    isSelected: boolean;
+    isLocked: boolean;
+    appDay: number;
+    stories: any[];
+    slotTotalMinutes: number;
+    stepMinutes: number;
+    activeBrushObj: any;
+    t: any;
+    onMouseDown: (col: number, row: number) => void;
+    onMouseEnter: (col: number, row: number) => void;
+    onNoteClick: (labelId: string, cellKey: string) => void;
+    onStoryClick: (storyId: string, status: string) => void;
+}
+
+const CalendarCell = memo(({
+    colIndex,
+    rowIndex,
+    labelId,
+    labelObj,
+    isSelected,
+    isLocked,
+    appDay,
+    stories,
+    slotTotalMinutes,
+    stepMinutes,
+    activeBrushObj,
+    t,
+    onMouseDown,
+    onMouseEnter,
+    onNoteClick,
+    onStoryClick
+}: CalendarCellProps) => {
+
+    const cellStories = useMemo(() => stories.filter(s => {
+        const storyMinutes = s.hour * 60 + s.minute;
+        return s.dayIndex === colIndex && storyMinutes >= slotTotalMinutes && storyMinutes < slotTotalMinutes + stepMinutes;
+    }), [stories, colIndex, slotTotalMinutes, stepMinutes]);
+
+    return (
+        <td
+            data-col={colIndex}
+            data-row={rowIndex}
+            className={clsx(
+                "p-0 border-r border-slate-200 relative h-8 cursor-pointer group transition-colors",
+                colIndex === appDay && "bg-emerald-50/50 border-x border-emerald-100"
+            )}
+            onMouseDown={() => onMouseDown(colIndex, rowIndex)}
+            onMouseEnter={() => onMouseEnter(colIndex, rowIndex)}
+        >
+            {/* Committed Layer */}
+            {labelObj && (
+                <div
+                    className="absolute inset-0 w-full h-full border-l-2 pl-0.5 flex flex-col justify-center overflow-hidden transition-all duration-300"
+                    style={{
+                        backgroundColor: `${labelObj.color}30`,
+                        borderColor: labelObj.color
+                    }}
+                >
+                    <span className="text-[10px] font-normal tracking-tight opacity-100 px-0.5 leading-3 whitespace-normal break-words line-clamp-2 select-none" style={{ color: labelObj.color }}>
+                        {labelObj.name}
+                    </span>
+
+                    {!isLocked && (
+                        <button
+                            onClick={(e) => { e.stopPropagation(); onNoteClick(labelObj.id, `${colIndex}-${rowIndex}`); }}
+                            onMouseDown={(e) => e.stopPropagation()}
+                            className="mr-1 p-0.5 rounded hover:bg-white/50 text-slate-600 hover:text-slate-900 transition-all opacity-0 group-hover:opacity-100"
+                            title={t('notes')}
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3">
+                                <path d="m2.695 14.762-1.262 3.155a.5.5 0 0 0 .65.65l3.155-1.262a4 4 0 0 0 1.343-.886L17.5 5.501a2.121 2.121 0 0 0-3-3L3.58 13.419a4 4 0 0 0-.885 1.343Z" />
+                            </svg>
+                        </button>
+                    )}
+                </div>
+            )}
+
+            {/* Stories Layer */}
+            {cellStories.map(story => (
+                <div
+                    key={story.id}
+                    className={clsx(
+                        "absolute top-1/2 -translate-y-1/2 right-7 w-3 h-3 rounded-full bg-red-500 cursor-pointer shadow-[0_0_5px_rgba(239,68,68,0.8)] hover:scale-150 transition-transform z-20",
+                        (story.status === 'pending' || story.status === 'triggered') && "animate-pulse"
+                    )}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onClick={(e) => { e.stopPropagation(); onStoryClick(story.id, story.status); }}
+                />
+            ))}
+
+            {/* Selection Preview Overlay */}
+            {isSelected && activeBrushObj && (
+                <div
+                    className="absolute inset-0 w-full h-full z-10 opacity-50"
+                    style={{
+                        backgroundColor: activeBrushObj.color
+                    }}
+                />
+            )}
+        </td>
+    );
+}, (prev, next) => {
+    return (
+        prev.isSelected === next.isSelected &&
+        prev.labelId === next.labelId &&
+        prev.isLocked === next.isLocked &&
+        prev.appDay === next.appDay &&
+        prev.labelObj === next.labelObj && // Reference equality from store state
+        prev.activeBrushObj === next.activeBrushObj && // Reference equality
+        prev.stories === next.stories // Reference equality
+        // Handlers are assumed stable or appropriately updated
+    );
+});
 
 
 export function SmartCalendar() {
@@ -108,7 +226,7 @@ export function SmartCalendar() {
     };
 
     // Drag Logic
-    const handleMouseDown = (col: number, row: number) => {
+    const handleMouseDown = useCallback((col: number, row: number) => {
         // If Locked, allow "Viewing" of the cell's label content (Read Only Access)
         if (isLocked) {
             const key = `${col}-${row}`;
@@ -122,14 +240,28 @@ export function SmartCalendar() {
 
         setSelectionStart({ col, row });
         setSelectionEnd({ col, row }); // Init end same as start
-    };
+    }, [isLocked, schedule]); // Dependencies
 
-    const handleMouseEnter = (col: number, row: number) => {
+    const handleMouseEnter = useCallback((col: number, row: number) => {
         if (isLocked) return;
         if (selectionStart) {
-            setSelectionEnd({ col, row });
+            setSelectionEnd({ col, row }); // This is the ONLY state update during drag!
         }
-    };
+    }, [isLocked, selectionStart]);
+
+    // Also need handlers for clicks
+    const handleNoteClick = useCallback((labelId: string, cellKey: string) => {
+        setEditingLabelId(labelId);
+        setEditingCellKey(cellKey);
+        setActiveTab('instance');
+    }, []);
+
+    const handleStoryClick = useCallback((storyId: string, status: string) => {
+        setViewingStoryId(storyId);
+        if (status === 'pending') {
+            updateStory(storyId, { status: 'triggered' });
+        }
+    }, [updateStory]);
 
     const handleMouseUp = () => {
         if (isLocked) {
@@ -582,85 +714,37 @@ export function SmartCalendar() {
                                             </td>
                                             {DAYS.map((_, colIndex) => {
                                                 const cellKey = `${colIndex}-${rowIndex}`;
-                                                const labelId = schedule[cellKey];
+                                                // Coerce undefined to null for strict type compatibility with CalendarCellProps
+                                                const labelId = schedule[cellKey] || null;
                                                 // Find actual label obj for color (Committed)
+                                                // Memoize this if finding proves expensive, though array.find on small array is fast.
+                                                // However, we need referential stability for CalendarCell props if possible.
+                                                // Labels array is from store, so if store doesn't change, objects are same.
                                                 const labelObj = labels.find(l => l.id === labelId);
 
                                                 // Selection Preview Check
                                                 const isSelected = isCellSelected(colIndex, rowIndex);
 
                                                 return (
-                                                    <td
+                                                    <CalendarCell
                                                         key={colIndex}
-                                                        data-col={colIndex}
-                                                        data-row={rowIndex}
-                                                        className={clsx(
-                                                            "p-0 border-r border-slate-200 relative h-8 cursor-pointer group transition-colors",
-                                                            colIndex === appDay && "bg-emerald-50/50 border-x border-emerald-100"
-                                                        )}
-                                                        onMouseDown={() => handleMouseDown(colIndex, rowIndex)}
-                                                        onMouseEnter={() => handleMouseEnter(colIndex, rowIndex)}
-                                                    >
-                                                        {/* Committed Layer */}
-                                                        {labelObj && (
-                                                            <div
-                                                                className="absolute inset-0 w-full h-full border-l-2 pl-0.5 flex flex-col justify-center overflow-hidden transition-all duration-300"
-                                                                style={{
-                                                                    backgroundColor: `${labelObj.color}30`,
-                                                                    borderColor: labelObj.color
-                                                                }}
-                                                            >
-                                                                <span className="text-[10px] font-normal tracking-tight opacity-100 px-0.5 leading-3 whitespace-normal break-words line-clamp-2 select-none" style={{ color: labelObj.color }}>
-                                                                    {labelObj.name}
-                                                                </span>
-
-                                                                {!isLocked && (
-                                                                    <button
-                                                                        onClick={(e) => { e.stopPropagation(); setEditingLabelId(labelObj.id); setEditingCellKey(cellKey); setActiveTab('instance'); }}
-                                                                        onMouseDown={(e) => e.stopPropagation()}
-                                                                        className="mr-1 p-0.5 rounded hover:bg-white/50 text-slate-600 hover:text-slate-900 transition-all opacity-0 group-hover:opacity-100"
-                                                                        title={t('notes')}
-                                                                    >
-                                                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3">
-                                                                            <path d="m2.695 14.762-1.262 3.155a.5.5 0 0 0 .65.65l3.155-1.262a4 4 0 0 0 1.343-.886L17.5 5.501a2.121 2.121 0 0 0-3-3L3.58 13.419a4 4 0 0 0-.885 1.343Z" />
-                                                                        </svg>
-                                                                    </button>
-                                                                )}
-                                                            </div>
-                                                        )}
-
-                                                        {/* Stories Layer - Relocated */}
-                                                        {stories.filter(s => {
-                                                            const storyMinutes = s.hour * 60 + s.minute;
-                                                            return s.dayIndex === colIndex && storyMinutes >= slot.totalMinutes && storyMinutes < slot.totalMinutes + config.stepMinutes;
-                                                        }).map(story => (
-                                                            <div
-                                                                key={story.id}
-                                                                className={clsx(
-                                                                    "absolute top-1/2 -translate-y-1/2 right-7 w-3 h-3 rounded-full bg-red-500 cursor-pointer shadow-[0_0_5px_rgba(239,68,68,0.8)] hover:scale-150 transition-transform z-20",
-                                                                    (story.status === 'pending' || story.status === 'triggered') && "animate-pulse"
-                                                                )}
-                                                                onMouseDown={(e) => e.stopPropagation()}
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    setViewingStoryId(story.id);
-                                                                    if (story.status === 'pending') {
-                                                                        updateStory(story.id, { status: 'triggered' });
-                                                                    }
-                                                                }}
-                                                            />
-                                                        ))}
-
-                                                        {/* Selection Preview Overlay */}
-                                                        {isSelected && activeBrushObj && (
-                                                            <div
-                                                                className="absolute inset-0 w-full h-full z-10 opacity-50"
-                                                                style={{
-                                                                    backgroundColor: activeBrushObj.color
-                                                                }}
-                                                            />
-                                                        )}
-                                                    </td>
+                                                        colIndex={colIndex}
+                                                        rowIndex={rowIndex}
+                                                        labelId={labelId}
+                                                        labelObj={labelObj}
+                                                        isSelected={isSelected}
+                                                        isLocked={isLocked}
+                                                        appDay={appDay}
+                                                        stories={stories}
+                                                        slotTotalMinutes={slot.totalMinutes}
+                                                        stepMinutes={config.stepMinutes}
+                                                        activeBrushObj={activeBrushObj}
+                                                        t={t}
+                                                        onMouseDown={handleMouseDown}
+                                                        onMouseEnter={handleMouseEnter}
+                                                        onNoteClick={handleNoteClick}
+                                                        onStoryClick={handleStoryClick}
+                                                    />
                                                 );
                                             })}
                                         </tr>
