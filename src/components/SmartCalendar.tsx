@@ -683,24 +683,21 @@ export function SmartCalendar() {
 
             {/* --- MIDDLE: CALENDAR --- */}
             <main className="flex-1 relative overflow-hidden flex flex-col min-h-0">
-                {/* Header inside Main (Always Visible) */}
+                {/* Header inside Main (Visible ONLY in Viewing Mode) */}
                 <div className={clsx(
-                    "flex-none p-4 flex justify-between items-center z-30 bg-gradient-to-b from-white to-transparent",
+                    "flex-none p-4 flex justify-between items-center z-30 bg-gradient-to-b from-white to-transparent transition-all duration-300",
+                    !isLocked && "hidden", // HIDE in Config Mode
                     activeBottomPanel === 'config' && "hidden"
                 )}>
-                    {/* Header Cleaned Up */}
-                    <div className="flex items-center gap-4 ml-auto">
-                        {hasUnsavedChanges && (
-                            <div className="flex items-center gap-2 animate-in fade-in slide-in-from-top-2 duration-300">
-                                <Button size="sm" variant="ghost" onClick={discardChanges} className="text-red-500 hover:text-red-600 hover:bg-red-50">
-                                    {t('cancel')}
-                                </Button>
-                                <Button size="sm" onClick={saveChanges} className="shadow-lg shadow-emerald-500/20 bg-emerald-600 hover:bg-emerald-700 text-white border-0">
-                                    {t('save')}
-                                </Button>
-                            </div>
-                        )}
-                        {/* Time Removed */}
+                    <div className="flex items-center gap-2">
+                        <h1 className="text-xl font-black text-slate-900 tracking-tighter drop-shadow-sm">
+                            <span className="text-emerald-600">BIO</span> PLANIFICADOR
+                        </h1>
+                    </div>
+                    <div className="flex items-center gap-4">
+                        <div className="px-4 py-1.5 rounded-xl bg-white/80 border border-slate-200 font-mono text-emerald-600 font-bold text-sm backdrop-blur shadow-sm">
+                            {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                        </div>
                         <button
                             onClick={handleLogout}
                             className="p-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 transition-all hover:scale-105 active:scale-95"
@@ -708,6 +705,37 @@ export function SmartCalendar() {
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
                                 <path fillRule="evenodd" d="M16.5 3.75a1.5 1.5 0 0 1 1.5 1.5v13.5a1.5 1.5 0 0 1-1.5 1.5h-6a1.5 1.5 0 0 1-1.5-1.5V15a.75.75 0 0 0-1.5 0v3.75a3 3 0 0 0 3 3h6a3 3 0 0 0 3-3V5.25a3 3 0 0 0-3-3h-6a3 3 0 0 0-3 3V9A.75.75 0 1 0 9 9V5.25a1.5 1.5 0 0 1 1.5-1.5h6ZM5.78 8.47a.75.75 0 0 0-1.06 0l-3 3a.75.75 0 0 0 0 1.06l3 3a.75.75 0 0 0 1.06-1.06l-1.72-1.72H15a.75.75 0 0 0 0-1.5H4.06l1.72-1.72a.75.75 0 0 0 0-1.06Z" clipRule="evenodd" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                {/* Compact Toolbar for Config Mode (Visible ONLY when Unlocked) */}
+                <div className={clsx(
+                    "flex-none p-2 flex justify-between items-center z-30 bg-white border-b border-slate-200 shadow-sm transition-all duration-300",
+                    isLocked && "hidden" // HIDE in Viewing Mode
+                )}>
+                    <div className="font-bold text-xs text-slate-500 uppercase tracking-wider ml-2">
+                        {t('editingMode')}
+                    </div>
+                    <div className="flex items-center gap-2">
+                        {hasUnsavedChanges && (
+                            <>
+                                <Button size="sm" variant="ghost" onClick={discardChanges} className="h-7 text-xs text-red-500 hover:text-red-600 hover:bg-red-50">
+                                    {t('cancel')}
+                                </Button>
+                                <Button size="sm" onClick={saveChanges} className="h-7 text-xs shadow-md shadow-emerald-500/20 bg-emerald-600 hover:bg-emerald-700 text-white border-0">
+                                    {t('save')}
+                                </Button>
+                            </>
+                        )}
+                        <button
+                            onClick={toggleLock}
+                            className="ml-2 p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
+                            title={t('settingsClose')}
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                             </svg>
                         </button>
                     </div>
