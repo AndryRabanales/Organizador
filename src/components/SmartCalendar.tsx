@@ -29,8 +29,7 @@ export function SmartCalendar() {
     const [selectionEnd, setSelectionEnd] = useState<{ col: number, row: number } | null>(null);
 
     // Touch / Long Press State
-    const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const isLongPressActive = useRef(false);
+    // Touch / Long Press State
     const touchStartPosition = useRef<{ x: number, y: number } | null>(null);
 
     // Real-time clock
@@ -245,45 +244,40 @@ export function SmartCalendar() {
         const tbody = tbodyRef.current;
         if (!tbody) return;
 
+        let scrollMode: 'select' | 'scroll' | null = null;
+
         const handleTouchStart = (e: TouchEvent) => {
             const touch = e.touches[0];
             touchStartPosition.current = { x: touch.clientX, y: touch.clientY };
-            isLongPressActive.current = false;
+            scrollMode = null; // Reset mode
 
-            // Start Long Press Timer (500ms)
-            longPressTimer.current = setTimeout(() => {
-                isLongPressActive.current = true;
-                if (navigator.vibrate) navigator.vibrate(50); // Haptic feedback
-
-                const element = document.elementFromPoint(touch.clientX, touch.clientY);
-                const cell = element?.closest('td[data-col]');
-                if (cell) {
-                    const col = parseInt(cell.getAttribute('data-col') || '0');
-                    const row = parseInt(cell.getAttribute('data-row') || '0');
-                    handleMouseDown(col, row);
-                }
-            }, 400); // 400ms threshold
+            // Immediate selection on start
+            const element = document.elementFromPoint(touch.clientX, touch.clientY);
+            const cell = element?.closest('td[data-col]');
+            if (cell) {
+                const col = parseInt(cell.getAttribute('data-col') || '0');
+                const row = parseInt(cell.getAttribute('data-row') || '0');
+                handleMouseDown(col, row);
+            }
         };
 
         const handleTouchMove = (e: TouchEvent) => {
             const touch = e.touches[0];
-            const startX = touchStartPosition.current?.x || 0;
             const startY = touchStartPosition.current?.y || 0;
-            const moveX = Math.abs(touch.clientX - startX);
-            const moveY = Math.abs(touch.clientY - startY);
+            const currentY = touch.clientY;
+            const deltaY = currentY - startY;
 
-            // If moved significantly before timer fires, cancel timer (it's a scroll)
-            if (!isLongPressActive.current && (moveX > 10 || moveY > 10)) {
-                if (longPressTimer.current) {
-                    clearTimeout(longPressTimer.current);
-                    longPressTimer.current = null;
+            // Determine mode if not set
+            if (!scrollMode) {
+                if (Math.abs(deltaY) > 5) {
+                    // Finger moves UP (Negative Delta) -> Select Mode
+                    // Finger moves DOWN (Positive Delta) -> Scroll Mode
+                    scrollMode = deltaY < 0 ? 'select' : 'scroll';
                 }
             }
 
-            // If Long Press IS active, lock scroll and update selection
-            if (isLongPressActive.current) {
+            if (scrollMode === 'select') {
                 if (e.cancelable) e.preventDefault(); // STOP SCROLLING
-
                 const element = document.elementFromPoint(touch.clientX, touch.clientY);
                 const cell = element?.closest('td[data-col]');
                 if (cell) {
@@ -292,21 +286,15 @@ export function SmartCalendar() {
                     handleMouseEnter(col, row);
                 }
             }
+            // If scrollMode === 'scroll', simply do nothing and let browser handling scrolling
         };
 
         const handleTouchEnd = () => {
-            if (longPressTimer.current) {
-                clearTimeout(longPressTimer.current);
-                longPressTimer.current = null;
-            }
-
-            if (isLongPressActive.current) {
-                handleMouseUp();
-                isLongPressActive.current = false;
-            }
+            handleMouseUp();
+            scrollMode = null;
         };
 
-        // Add listeners with passive: false for touchmove
+        // Add listeners with passive: false for touchmove to allow preventing default
         tbody.addEventListener('touchstart', handleTouchStart, { passive: true });
         tbody.addEventListener('touchmove', handleTouchMove, { passive: false });
         tbody.addEventListener('touchend', handleTouchEnd);
