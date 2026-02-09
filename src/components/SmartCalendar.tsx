@@ -760,7 +760,7 @@ export function SmartCalendar() {
                             </>
                         )}
                         <button
-                            onClick={toggleLock}
+                            onClick={cycleMode} // Consistent with cycle flow (Edit -> Focus)
                             className="ml-2 p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
                             title={t('settingsClose')}
                         >
