@@ -71,6 +71,10 @@ interface CalendarState {
     dailyNotes: string;
     stories: Story[];
     isLoading: boolean; // Loading state
+    hasUnsavedChanges: boolean;
+
+    // Internal queue for deferred DB operations
+    pendingOps: (() => Promise<any>)[];
 
     setConfig: (config: Partial<CalendarConfig>) => void;
     setCell: (dayIndex: number, slotIndex: number, labelId: string) => void;
@@ -80,6 +84,8 @@ interface CalendarState {
 
     // Async Actions
     fetchData: () => Promise<void>;
+    saveChanges: () => Promise<void>;
+    discardChanges: () => void;
 
     addLabel: (name: string, color: string) => void;
     removeLabel: (id: string) => void;
@@ -119,6 +125,8 @@ export const useCalendarStore = create<CalendarState>()(
             stories: [],
             isLocked: true, // Default to true (Viewing Mode)
             isLoading: true, // Start as true
+            hasUnsavedChanges: false,
+            pendingOps: [],
 
             fetchData: async () => {
                 set({ isLoading: true });
@@ -207,36 +215,63 @@ export const useCalendarStore = create<CalendarState>()(
                         instanceNotes: newInstanceNotes,
                         stories: newStories,
                         isLoading: false,
-                        isLocked: true // Force viewing mode on load
+                        isLocked: true, // Force viewing mode on load
+                        hasUnsavedChanges: false,
+                        pendingOps: []
                     });
                     console.log("Data fetched successfully");
 
                 } catch (error) {
                     console.error("Error fetching data:", error);
-                    // On error, we keep local state (persist) but stop loading
                     set({ isLoading: false });
                 }
             },
 
+            saveChanges: async () => {
+                const { pendingOps } = get();
+                if (pendingOps.length === 0) return;
+
+                set({ isLoading: true });
+                try {
+                    // Execute all pending operations sequentially
+                    for (const op of pendingOps) {
+                        await op();
+                    }
+                    set({
+                        hasUnsavedChanges: false,
+                        pendingOps: [],
+                        isLoading: false
+                    });
+                } catch (error) {
+                    console.error("Error saving changes:", error);
+                    alert("Error saving changes. See console.");
+                    set({ isLoading: false });
+                }
+            },
+
+            discardChanges: () => {
+                const { fetchData } = get();
+                // Just re-fetch data from DB, which overwrites local state
+                fetchData();
+            },
+
             setConfig: async (newConfig) => {
                 set((state) => ({
-                    config: { ...state.config, ...newConfig }
+                    config: { ...state.config, ...newConfig },
+                    hasUnsavedChanges: true,
+                    pendingOps: [...state.pendingOps, async () => {
+                        const userId = (await supabase.auth.getUser()).data.user?.id;
+                        const fullConfig = get().config;
+                        if (userId) {
+                            await supabase.from('calendar_config').upsert({
+                                user_id: userId,
+                                start_hour: fullConfig.startHour,
+                                end_hour: fullConfig.endHour,
+                                step_minutes: fullConfig.stepMinutes
+                            }, { onConflict: 'user_id' });
+                        }
+                    }]
                 }));
-                // Auto-save to DB
-                const userId = (await supabase.auth.getUser()).data.user?.id;
-                const fullConfig = get().config; // Get updated config from state (or construct it)
-                const merged = { ...fullConfig, ...newConfig };
-
-                if (userId) {
-                    supabase.from('calendar_config').upsert({
-                        user_id: userId,
-                        start_hour: merged.startHour,
-                        end_hour: merged.endHour,
-                        step_minutes: merged.stepMinutes
-                    }, { onConflict: 'user_id' }).then(({ error }) => {
-                        if (error) console.error("Config Save Error:", error);
-                    });
-                }
             },
 
             setCell: async (dayIndex, slotIndex, labelId) => {
@@ -248,114 +283,142 @@ export const useCalendarStore = create<CalendarState>()(
                 const current = schedule[key];
                 const next = current === labelId ? undefined : labelId;
 
-                const userId = (await supabase.auth.getUser()).data.user?.id;
-                // If no user, we just update local state (optimistic or offline mode)
-
                 const newSchedule = { ...schedule };
                 const newInstanceNotes = { ...instanceNotes };
 
                 if (next === undefined) {
                     delete newSchedule[key];
                     delete newInstanceNotes[key];
-                    if (userId) {
-                        supabase.from('schedule_entries').delete().match({ day_index: dayIndex, slot_index: slotIndex }).then();
-                        supabase.from('instance_notes').delete().match({ key }).then();
-                    }
                 } else {
                     newSchedule[key] = next;
-                    if (userId) {
-                        supabase.from('schedule_entries').upsert({
-                            user_id: userId,
-                            day_index: dayIndex,
-                            slot_index: slotIndex,
-                            label_id: next
-                        }, { onConflict: 'user_id,day_index,slot_index' }).then();
-                    }
                 }
 
-                set({ schedule: newSchedule, instanceNotes: newInstanceNotes });
+                set((state) => ({
+                    schedule: newSchedule,
+                    instanceNotes: newInstanceNotes,
+                    hasUnsavedChanges: true,
+                    pendingOps: [...state.pendingOps, async () => {
+                        const userId = (await supabase.auth.getUser()).data.user?.id;
+                        if (!userId) return;
+
+                        if (next === undefined) {
+                            await supabase.from('schedule_entries').delete().match({ day_index: dayIndex, slot_index: slotIndex });
+                            await supabase.from('instance_notes').delete().match({ key });
+                        } else {
+                            await supabase.from('schedule_entries').upsert({
+                                user_id: userId,
+                                day_index: dayIndex,
+                                slot_index: slotIndex,
+                                label_id: next
+                            }, { onConflict: 'user_id,day_index,slot_index' });
+                        }
+                    }]
+                }));
             },
 
             updateCell: async (dayIndex, slotIndex, labelId) => {
                 const { isLocked, schedule, instanceNotes } = get();
                 if (isLocked) return;
 
-                const userId = (await supabase.auth.getUser()).data.user?.id;
                 const key = `${dayIndex}-${slotIndex}`;
-                // optimistic updates
                 const newSchedule = { ...schedule };
                 const newInstanceNotes = { ...instanceNotes };
 
                 if (labelId === undefined || labelId === null) {
                     delete newSchedule[key];
                     delete newInstanceNotes[key];
-                    if (userId) {
-                        supabase.from('schedule_entries').delete().match({ day_index: dayIndex, slot_index: slotIndex }).then();
-                        supabase.from('instance_notes').delete().match({ key }).then();
-                    }
                 } else {
                     newSchedule[key] = labelId;
-                    if (userId) {
-                        supabase.from('schedule_entries').upsert({
-                            user_id: userId,
-                            day_index: dayIndex,
-                            slot_index: slotIndex,
-                            label_id: labelId
-                        }, { onConflict: 'user_id,day_index,slot_index' }).then();
-                    }
                 }
 
-                set({ schedule: newSchedule, instanceNotes: newInstanceNotes });
+                set((state) => ({
+                    schedule: newSchedule,
+                    instanceNotes: newInstanceNotes,
+                    hasUnsavedChanges: true,
+                    pendingOps: [...state.pendingOps, async () => {
+                        const userId = (await supabase.auth.getUser()).data.user?.id;
+                        if (!userId) return;
+
+                        if (labelId === undefined || labelId === null) {
+                            await supabase.from('schedule_entries').delete().match({ day_index: dayIndex, slot_index: slotIndex });
+                            await supabase.from('instance_notes').delete().match({ key });
+                        } else {
+                            await supabase.from('schedule_entries').upsert({
+                                user_id: userId,
+                                day_index: dayIndex,
+                                slot_index: slotIndex,
+                                label_id: labelId
+                            }, { onConflict: 'user_id,day_index,slot_index' });
+                        }
+                    }]
+                }));
             },
 
             setCellsBatch: async (cells, labelId) => {
                 const { isLocked, schedule, instanceNotes } = get();
                 if (isLocked) return;
 
-                const userId = (await supabase.auth.getUser()).data.user?.id;
-
                 const newSchedule = { ...schedule };
                 const newInstanceNotes = { ...instanceNotes };
-                const upserts: any[] = [];
 
                 cells.forEach(cell => {
                     const key = `${cell.day}-${cell.slot}`;
                     if (labelId === null) {
                         delete newSchedule[key];
                         delete newInstanceNotes[key];
-                        if (userId) {
-                            supabase.from('schedule_entries').delete().match({ day_index: cell.day, slot_index: cell.slot }).then();
-                            supabase.from('instance_notes').delete().match({ key }).then();
-                        }
                     } else {
                         newSchedule[key] = labelId;
-                        if (userId) {
-                            upserts.push({
-                                user_id: userId,
-                                day_index: cell.day,
-                                slot_index: cell.slot,
-                                label_id: labelId
-                            });
-                        }
                     }
                 });
 
-                if (upserts.length > 0 && userId) {
-                    supabase.from('schedule_entries').upsert(upserts, { onConflict: 'user_id,day_index,slot_index' }).then(({ error }) => {
-                        if (error) console.error("Batch Upsert Error", error);
-                    });
-                }
+                set((state) => ({
+                    schedule: newSchedule,
+                    instanceNotes: newInstanceNotes,
+                    hasUnsavedChanges: true,
+                    pendingOps: [...state.pendingOps, async () => {
+                        const userId = (await supabase.auth.getUser()).data.user?.id;
+                        if (!userId) return;
 
-                set({ schedule: newSchedule, instanceNotes: newInstanceNotes });
+                        const upserts: any[] = [];
+                        if (labelId === null) {
+                            for (const cell of cells) {
+                                await supabase.from('schedule_entries').delete().match({ day_index: cell.day, slot_index: cell.slot });
+                                await supabase.from('instance_notes').delete().match({ key: `${cell.day}-${cell.slot}` });
+                            }
+                        } else {
+                            cells.forEach(cell => {
+                                upserts.push({
+                                    user_id: userId,
+                                    day_index: cell.day,
+                                    slot_index: cell.slot,
+                                    label_id: labelId
+                                });
+                            });
+                            if (upserts.length > 0) {
+                                await supabase.from('schedule_entries').upsert(upserts, { onConflict: 'user_id,day_index,slot_index' });
+                            }
+                        }
+                    }]
+                }));
             },
 
             clearSchedule: () => set((state) => {
                 if (state.isLocked) return {};
-                return { schedule: {}, instanceNotes: {} }
+                return {
+                    schedule: {},
+                    instanceNotes: {},
+                    hasUnsavedChanges: true,
+                    pendingOps: [...state.pendingOps, async () => {
+                        const userId = (await supabase.auth.getUser()).data.user?.id;
+                        if (userId) {
+                            await supabase.from('schedule_entries').delete().eq('user_id', userId);
+                            await supabase.from('instance_notes').delete().eq('user_id', userId);
+                        }
+                    }]
+                }
             }),
 
             addLabel: async (name, color) => {
-                const userId = (await supabase.auth.getUser()).data.user?.id;
                 const newLabel: CustomLabel = {
                     id: crypto.randomUUID(),
                     name,
@@ -367,27 +430,29 @@ export const useCalendarStore = create<CalendarState>()(
                     customTabs: {}
                 };
 
-                set((state) => ({ labels: [...state.labels, newLabel] }));
-
-                if (userId) {
-                    supabase.from('labels').insert({
-                        id: newLabel.id,
-                        user_id: userId,
-                        name: newLabel.name,
-                        color: newLabel.color,
-                        notes: '',
-                        daily_notes: '',
-                        open_tabs: newLabel.openTabs,
-                        trashed_tabs: newLabel.trashedTabs,
-                        custom_tabs: newLabel.customTabs
-                    }).then(({ error }) => {
-                        if (error) console.error("Add Label DB Error", error);
-                    });
-                }
+                set((state) => ({
+                    labels: [...state.labels, newLabel],
+                    hasUnsavedChanges: true,
+                    pendingOps: [...state.pendingOps, async () => {
+                        const userId = (await supabase.auth.getUser()).data.user?.id;
+                        if (userId) {
+                            await supabase.from('labels').insert({
+                                id: newLabel.id,
+                                user_id: userId,
+                                name: newLabel.name,
+                                color: newLabel.color,
+                                notes: '',
+                                daily_notes: '',
+                                open_tabs: newLabel.openTabs,
+                                trashed_tabs: newLabel.trashedTabs,
+                                custom_tabs: newLabel.customTabs
+                            });
+                        }
+                    }]
+                }));
             },
 
             removeLabel: async (id) => {
-                const userId = (await supabase.auth.getUser()).data.user?.id;
                 set((state) => {
                     const keysToRemove = Object.keys(state.schedule).filter(key => state.schedule[key] === id);
                     const newSchedule = { ...state.schedule };
@@ -397,266 +462,268 @@ export const useCalendarStore = create<CalendarState>()(
                         delete newInstanceNotes[key];
                     });
 
-                    if (userId) {
-                        supabase.from('labels').delete().eq('id', id).then();
-                        // Cascading delete is handled by DB for schedule_entries, but instance_notes might create orphans if we don't clear them manually or have DB cascade.
-                        // My schema said: label_id references labels on delete cascade. So schedule_entries are gone.
-                        // instance_notes are NOT linked to labels directly, they are linked to keys.
-                        // So we MUST delete instance notes manually or by key.
-                        // We can't delete by "key where label was X" easily in SQL without a join delete.
-                        // Simpler to just let them rot? No, better to delete explicitly if we know the keys.
-                        // But we don't know the keys in the DB without querying. 
-                        // Actually, if we delete the `schedule_entries` (via cascade), the `instance_notes` for those keys are now "orphans" logic-wise but effectively just data on a blank cell.
-                        // Just like before, we should delete them.
-                        // We will trust the local state knows the keys.
-                        // But for async, let's just delete the label and let cascade handle schedule.
-                        // For instance notes... we might leave them or delete them if we can match keys.
-                    }
-
                     return {
                         labels: state.labels.filter(l => l.id !== id),
                         schedule: newSchedule,
-                        instanceNotes: newInstanceNotes
+                        instanceNotes: newInstanceNotes,
+                        hasUnsavedChanges: true,
+                        pendingOps: [...state.pendingOps, async () => {
+                            const userId = (await supabase.auth.getUser()).data.user?.id;
+                            if (userId) {
+                                await supabase.from('labels').delete().eq('id', id);
+                            }
+                        }]
                     };
                 });
             },
 
             updateLabelNotes: async (id, notes) => {
-                const userId = (await supabase.auth.getUser()).data.user?.id;
                 set((state) => ({
-                    labels: state.labels.map(l => l.id === id ? { ...l, notes } : l)
+                    labels: state.labels.map(l => l.id === id ? { ...l, notes } : l),
+                    hasUnsavedChanges: true,
+                    pendingOps: [...state.pendingOps, async () => {
+                        await supabase.from('labels').update({ notes }).eq('id', id);
+                    }]
                 }));
-                if (userId) {
-                    supabase.from('labels').update({ notes }).eq('id', id).then();
-                }
             },
 
             updateInstanceNote: async (key, notes) => {
-                const userId = (await supabase.auth.getUser()).data.user?.id;
                 set((state) => ({
-                    instanceNotes: { ...state.instanceNotes, [key]: notes }
+                    instanceNotes: { ...state.instanceNotes, [key]: notes },
+                    hasUnsavedChanges: true,
+                    pendingOps: [...state.pendingOps, async () => {
+                        const userId = (await supabase.auth.getUser()).data.user?.id;
+                        if (userId) {
+                            await supabase.from('instance_notes').upsert({
+                                user_id: userId,
+                                key,
+                                content: notes
+                            }, { onConflict: 'user_id,key' });
+                        }
+                    }]
                 }));
-                if (userId) {
-                    supabase.from('instance_notes').upsert({
-                        user_id: userId,
-                        key,
-                        content: notes
-                    }, { onConflict: 'user_id,key' }).then();
-                }
             },
 
             updateDailyNotes: async (labelId, notes) => {
-                const userId = (await supabase.auth.getUser()).data.user?.id;
                 set((state) => ({
-                    labels: state.labels.map(l => l.id === labelId ? { ...l, dailyNotes: notes } : l)
+                    labels: state.labels.map(l => l.id === labelId ? { ...l, dailyNotes: notes } : l),
+                    hasUnsavedChanges: true,
+                    pendingOps: [...state.pendingOps, async () => {
+                        await supabase.from('labels').update({ daily_notes: notes }).eq('id', labelId);
+                    }]
                 }));
-                if (userId) {
-                    supabase.from('labels').update({ daily_notes: notes }).eq('id', labelId).then();
-                }
             },
 
             addStory: async (story) => {
-                const userId = (await supabase.auth.getUser()).data.user?.id;
                 const newStory = {
                     ...story,
                     id: crypto.randomUUID(),
                     createdAt: Date.now(),
                     status: 'pending' as const
                 };
-                set((state) => ({ stories: [...state.stories, newStory] }));
-
-                if (userId) {
-                    supabase.from('stories').insert({
-                        id: newStory.id,
-                        user_id: userId,
-                        day_index: newStory.dayIndex,
-                        hour: newStory.hour,
-                        minute: newStory.minute,
-                        title: newStory.title,
-                        content: newStory.content,
-                        created_at: newStory.createdAt,
-                        status: newStory.status
-                    }).then();
-                }
+                set((state) => ({
+                    stories: [...state.stories, newStory],
+                    hasUnsavedChanges: true,
+                    pendingOps: [...state.pendingOps, async () => {
+                        const userId = (await supabase.auth.getUser()).data.user?.id;
+                        if (userId) {
+                            await supabase.from('stories').insert({
+                                id: newStory.id,
+                                user_id: userId,
+                                day_index: newStory.dayIndex,
+                                hour: newStory.hour,
+                                minute: newStory.minute,
+                                title: newStory.title,
+                                content: newStory.content,
+                                created_at: newStory.createdAt,
+                                status: newStory.status
+                            });
+                        }
+                    }]
+                }));
             },
 
             updateStory: async (id, updates) => {
-                const userId = (await supabase.auth.getUser()).data.user?.id;
                 set((state) => ({
-                    stories: state.stories.map(s => s.id === id ? { ...s, ...updates } : s)
+                    stories: state.stories.map(s => s.id === id ? { ...s, ...updates } : s),
+                    hasUnsavedChanges: true,
+                    pendingOps: [...state.pendingOps, async () => {
+                        await supabase.from('stories').update(updates).eq('id', id);
+                    }]
                 }));
-                if (userId) {
-                    supabase.from('stories').update(updates).eq('id', id).then();
-                }
             },
 
             removeStory: async (id) => {
-                const userId = (await supabase.auth.getUser()).data.user?.id;
                 set((state) => ({
-                    stories: state.stories.filter(s => s.id !== id)
+                    stories: state.stories.filter(s => s.id !== id),
+                    hasUnsavedChanges: true,
+                    pendingOps: [...state.pendingOps, async () => {
+                        await supabase.from('stories').delete().eq('id', id);
+                    }]
                 }));
-                if (userId) {
-                    supabase.from('stories').delete().eq('id', id).then();
-                }
             },
 
             addTab: async (labelId) => {
-                const userId = (await supabase.auth.getUser()).data.user?.id;
-                let updatedLabel: CustomLabel | undefined;
+                set((state) => {
+                    const label = state.labels.find(l => l.id === labelId);
+                    if (!label) return {};
+                    const totalTabs = label.openTabs.length + label.trashedTabs.length;
+                    if (totalTabs >= 7) return {};
 
-                set((state) => ({
-                    labels: state.labels.map(l => {
-                        if (l.id !== labelId) return l;
-                        const totalTabs = l.openTabs.length + l.trashedTabs.length;
-                        if (totalTabs >= 7) return l; // Max limit reached
+                    const newTabId = `tab-${crypto.randomUUID()}`;
+                    const customTab: CustomTab = {
+                        id: newTabId,
+                        title: `Note ${Object.keys(label.customTabs).length + 1}`,
+                        content: ''
+                    };
 
-                        const newTabId = `tab-${crypto.randomUUID()}`;
-                        const customTab: CustomTab = {
-                            id: newTabId,
-                            title: `Note ${Object.keys(l.customTabs).length + 1}`,
-                            content: ''
-                        };
+                    const updatedLabel = {
+                        ...label,
+                        openTabs: [...label.openTabs, newTabId],
+                        customTabs: { ...label.customTabs, [newTabId]: customTab }
+                    };
 
-                        updatedLabel = {
-                            ...l,
-                            openTabs: [...l.openTabs, newTabId],
-                            customTabs: { ...l.customTabs, [newTabId]: customTab }
-                        };
-                        return updatedLabel;
-                    })
-                }));
-
-                if (userId && updatedLabel) {
-                    supabase.from('labels').update({
-                        open_tabs: updatedLabel.openTabs,
-                        custom_tabs: updatedLabel.customTabs
-                    }).eq('id', labelId).then();
-                }
+                    return {
+                        labels: state.labels.map(l => l.id === labelId ? updatedLabel : l),
+                        hasUnsavedChanges: true,
+                        pendingOps: [...state.pendingOps, async () => {
+                            await supabase.from('labels').update({
+                                open_tabs: updatedLabel.openTabs,
+                                custom_tabs: updatedLabel.customTabs
+                            }).eq('id', labelId);
+                        }]
+                    };
+                });
             },
 
             closeTab: async (labelId, tabId) => {
-                const userId = (await supabase.auth.getUser()).data.user?.id;
-                let updatedLabel: CustomLabel | undefined;
+                set((state) => {
+                    const label = state.labels.find(l => l.id === labelId);
+                    if (!label || !label.openTabs.includes(tabId)) return {};
 
-                set((state) => ({
-                    labels: state.labels.map(l => {
-                        if (l.id !== labelId) return l;
-                        if (!l.openTabs.includes(tabId)) return l;
-                        updatedLabel = {
-                            ...l,
-                            openTabs: l.openTabs.filter(id => id !== tabId),
-                            trashedTabs: [...l.trashedTabs, tabId]
-                        };
-                        return updatedLabel;
-                    })
-                }));
+                    const updatedLabel = {
+                        ...label,
+                        openTabs: label.openTabs.filter(id => id !== tabId),
+                        trashedTabs: [...label.trashedTabs, tabId]
+                    };
 
-                if (userId && updatedLabel) {
-                    supabase.from('labels').update({
-                        open_tabs: updatedLabel.openTabs,
-                        trashed_tabs: updatedLabel.trashedTabs
-                    }).eq('id', labelId).then();
-                }
+                    return {
+                        labels: state.labels.map(l => l.id === labelId ? updatedLabel : l),
+                        hasUnsavedChanges: true,
+                        pendingOps: [...state.pendingOps, async () => {
+                            await supabase.from('labels').update({
+                                open_tabs: updatedLabel.openTabs,
+                                trashed_tabs: updatedLabel.trashedTabs
+                            }).eq('id', labelId);
+                        }]
+                    };
+                });
             },
 
             restoreTab: async (labelId, tabId) => {
-                const userId = (await supabase.auth.getUser()).data.user?.id;
-                let updatedLabel: CustomLabel | undefined;
+                set((state) => {
+                    const label = state.labels.find(l => l.id === labelId);
+                    if (!label || !label.trashedTabs.includes(tabId)) return {};
 
-                set((state) => ({
-                    labels: state.labels.map(l => {
-                        if (l.id !== labelId) return l;
-                        if (!l.trashedTabs.includes(tabId)) return l;
-                        updatedLabel = {
-                            ...l,
-                            trashedTabs: l.trashedTabs.filter(id => id !== tabId),
-                            openTabs: [...l.openTabs, tabId]
-                        };
-                        return updatedLabel;
-                    })
-                }));
+                    const updatedLabel = {
+                        ...label,
+                        trashedTabs: label.trashedTabs.filter(id => id !== tabId),
+                        openTabs: [...label.openTabs, tabId]
+                    };
 
-                if (userId && updatedLabel) {
-                    supabase.from('labels').update({
-                        open_tabs: updatedLabel.openTabs,
-                        trashed_tabs: updatedLabel.trashedTabs
-                    }).eq('id', labelId).then();
-                }
+                    return {
+                        labels: state.labels.map(l => l.id === labelId ? updatedLabel : l),
+                        hasUnsavedChanges: true,
+                        pendingOps: [...state.pendingOps, async () => {
+                            await supabase.from('labels').update({
+                                open_tabs: updatedLabel.openTabs,
+                                trashed_tabs: updatedLabel.trashedTabs
+                            }).eq('id', labelId);
+                        }]
+                    };
+                });
             },
 
             deleteTabForever: async (labelId, tabId) => {
-                const userId = (await supabase.auth.getUser()).data.user?.id;
-                let updatedLabel: CustomLabel | undefined;
+                set((state) => {
+                    const label = state.labels.find(l => l.id === labelId);
+                    if (!label) return {};
 
-                set((state) => ({
-                    labels: state.labels.map(l => {
-                        if (l.id !== labelId) return l;
+                    const newCustomTabs = { ...label.customTabs };
+                    if (tabId.startsWith('tab-')) {
+                        delete newCustomTabs[tabId];
+                    }
 
-                        // Permanent delete logic
-                        const newCustomTabs = { ...l.customTabs };
-                        if (tabId.startsWith('tab-')) {
-                            delete newCustomTabs[tabId];
-                        }
+                    const updatedLabel = {
+                        ...label,
+                        trashedTabs: label.trashedTabs.filter(id => id !== tabId),
+                        customTabs: newCustomTabs
+                    };
 
-                        updatedLabel = {
-                            ...l,
-                            trashedTabs: l.trashedTabs.filter(id => id !== tabId),
-                            customTabs: newCustomTabs
-                        };
-                        return updatedLabel;
-                    })
-                }));
-
-                if (userId && updatedLabel) {
-                    supabase.from('labels').update({
-                        trashed_tabs: updatedLabel.trashedTabs,
-                        custom_tabs: updatedLabel.customTabs
-                    }).eq('id', labelId).then();
-                }
+                    return {
+                        labels: state.labels.map(l => l.id === labelId ? updatedLabel : l),
+                        hasUnsavedChanges: true,
+                        pendingOps: [...state.pendingOps, async () => {
+                            await supabase.from('labels').update({
+                                trashed_tabs: updatedLabel.trashedTabs,
+                                custom_tabs: updatedLabel.customTabs
+                            }).eq('id', labelId);
+                        }]
+                    };
+                });
             },
 
             updateCustomTab: async (labelId, tabId, content) => {
-                const userId = (await supabase.auth.getUser()).data.user?.id;
-                let updatedLabel: CustomLabel | undefined;
+                set((state) => {
+                    const label = state.labels.find(l => l.id === labelId);
+                    if (!label) return {};
+                    const oldTab = label.customTabs[tabId];
+                    if (!oldTab) return {};
 
-                set((state) => ({
-                    labels: state.labels.map(l => {
-                        if (l.id !== labelId) return l;
-                        const oldTab = l.customTabs[tabId];
-                        if (!oldTab) return l;
+                    const updatedLabel = {
+                        ...label,
+                        customTabs: {
+                            ...label.customTabs,
+                            [tabId]: { ...oldTab, content }
+                        }
+                    };
 
-                        updatedLabel = {
-                            ...l,
-                            customTabs: {
-                                ...l.customTabs,
-                                [tabId]: { ...oldTab, content }
-                            }
-                        };
-                        return updatedLabel;
-                    })
-                }));
-
-                if (userId && updatedLabel) {
-                    supabase.from('labels').update({
-                        custom_tabs: updatedLabel.customTabs
-                    }).eq('id', labelId).then();
-                }
+                    return {
+                        labels: state.labels.map(l => l.id === labelId ? updatedLabel : l),
+                        hasUnsavedChanges: true,
+                        pendingOps: [...state.pendingOps, async () => {
+                            await supabase.from('labels').update({
+                                custom_tabs: updatedLabel.customTabs
+                            }).eq('id', labelId);
+                        }]
+                    }
+                });
             },
 
             reorderTabs: async (labelId, newOrder) => {
-                const userId = (await supabase.auth.getUser()).data.user?.id;
                 set((state) => ({
-                    labels: state.labels.map(l => l.id === labelId ? { ...l, openTabs: newOrder } : l)
+                    labels: state.labels.map(l => l.id === labelId ? { ...l, openTabs: newOrder } : l),
+                    hasUnsavedChanges: true,
+                    pendingOps: [...state.pendingOps, async () => {
+                        await supabase.from('labels').update({ open_tabs: newOrder }).eq('id', labelId);
+                    }]
                 }));
-                if (userId) {
-                    supabase.from('labels').update({ open_tabs: newOrder }).eq('id', labelId).then();
-                }
             },
 
             toggleLock: () => set((state) => ({ isLocked: !state.isLocked })),
         }),
         {
             name: 'calendar-storage',
+            partialize: (state) => ({
+                config: state.config,
+                schedule: state.schedule,
+                labels: state.labels,
+                instanceNotes: state.instanceNotes,
+                stories: state.stories,
+                isLocked: state.isLocked,
+                dailyNotes: state.dailyNotes
+                // Exclude pendingOps and hasUnsavedChanges
+            })
         }
     )
 );

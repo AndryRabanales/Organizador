@@ -12,7 +12,7 @@ import { useLanguage } from '../hooks/useLanguage';
 
 export function SmartCalendar() {
     const { t, days: DAYS } = useLanguage();
-    const { config, schedule, labels, isLocked, instanceNotes, stories, setConfig, setCellsBatch, clearSchedule, addLabel, removeLabel, updateLabelNotes, updateInstanceNote, toggleLock, addTab, closeTab, restoreTab, deleteTabForever, updateCustomTab, reorderTabs, addStory, updateStory, removeStory } = useCalendarStore();
+    const { config, schedule, labels, isLocked, instanceNotes, stories, setConfig, setCellsBatch, clearSchedule, addLabel, removeLabel, updateLabelNotes, updateInstanceNote, toggleLock, addTab, closeTab, restoreTab, deleteTabForever, updateCustomTab, reorderTabs, addStory, updateStory, removeStory, hasUnsavedChanges, saveChanges, discardChanges } = useCalendarStore();
     const [selectedBrush, setSelectedBrush] = useState<string>(DEFAULT_LABELS[0].id);
     const [editingLabelId, setEditingLabelId] = useState<string | null>(null);
     const [editingCellKey, setEditingCellKey] = useState<string | null>(null);
@@ -518,6 +518,16 @@ export function SmartCalendar() {
 
                     </div>
                     <div className="flex items-center gap-4">
+                        {hasUnsavedChanges && (
+                            <div className="flex items-center gap-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                                <Button size="sm" variant="ghost" onClick={discardChanges} className="text-red-500 hover:text-red-600 hover:bg-red-50">
+                                    {t('cancel')}
+                                </Button>
+                                <Button size="sm" onClick={saveChanges} className="shadow-lg shadow-emerald-500/20 bg-emerald-600 hover:bg-emerald-700 text-white border-0">
+                                    {t('save')}
+                                </Button>
+                            </div>
+                        )}
                         <div className="px-4 py-1.5 rounded-xl bg-white/80 border border-slate-200 font-mono text-emerald-600 font-bold text-sm backdrop-blur shadow-sm">
                             {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                         </div>
