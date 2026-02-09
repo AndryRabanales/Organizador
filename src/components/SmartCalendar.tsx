@@ -30,7 +30,7 @@ interface CalendarCellProps {
 const CalendarCell = memo(({
     colIndex,
     rowIndex,
-    labelId,
+
     labelObj,
     isSelected,
     isLocked,
