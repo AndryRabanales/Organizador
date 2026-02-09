@@ -1,7 +1,7 @@
 import { useCalendarStore, DEFAULT_LABELS } from '../store/calendarStore';
 import { Button } from './Button';
 import clsx from 'clsx';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -15,6 +15,10 @@ export function SmartCalendar() {
     // Selection State
     const [selectionStart, setSelectionStart] = useState<{ col: number, row: number } | null>(null);
     const [selectionEnd, setSelectionEnd] = useState<{ col: number, row: number } | null>(null);
+
+    // Refs for real-time access inside event listeners (Fixes race condition)
+    const selectionStartRef = useRef<{ col: number, row: number } | null>(null);
+    const selectionEndRef = useRef<{ col: number, row: number } | null>(null);
 
     // Real-time clock
     const [now, setNow] = useState(new Date());
@@ -59,31 +63,46 @@ export function SmartCalendar() {
     // Drag Logic
     const handleMouseDown = (col: number, row: number) => {
         if (isLocked) return;
-        setSelectionStart({ col, row });
-        setSelectionEnd({ col, row }); // Init end same as start
+        const start = { col, row };
+        setSelectionStart(start);
+        setSelectionEnd(start); // Init end same as start
+
+        // Sync refs
+        selectionStartRef.current = start;
+        selectionEndRef.current = start;
     };
 
     const handleMouseEnter = (col: number, row: number) => {
         if (isLocked) return;
         if (selectionStart) {
-            setSelectionEnd({ col, row });
+            const end = { col, row };
+            setSelectionEnd(end);
+            // Sync ref
+            selectionEndRef.current = end;
         }
     };
 
     const handleMouseUp = () => {
+        // Use refs to get the latest state without waiting for re-renders
+        const start = selectionStartRef.current;
+        const end = selectionEndRef.current;
+
         if (isLocked) {
             setSelectionStart(null);
             setSelectionEnd(null);
+            selectionStartRef.current = null;
+            selectionEndRef.current = null;
             return;
         }
-        if (selectionStart && selectionEnd) {
+
+        if (start && end) {
             // Logic: If plain click (1 cell) and same color -> Toggle Off (Erase)
             // If Range -> Always Paint
 
-            const minCol = Math.min(selectionStart.col, selectionEnd.col);
-            const maxCol = Math.max(selectionStart.col, selectionEnd.col);
-            const minRow = Math.min(selectionStart.row, selectionEnd.row);
-            const maxRow = Math.max(selectionStart.row, selectionEnd.row);
+            const minCol = Math.min(start.col, end.col);
+            const maxCol = Math.max(start.col, end.col);
+            const minRow = Math.min(start.row, end.row);
+            const maxRow = Math.max(start.row, end.row);
 
             const isSingleCell = minCol === maxCol && minRow === maxRow;
             let labelToApply: string | null = selectedBrush;
@@ -109,13 +128,15 @@ export function SmartCalendar() {
         // Reset
         setSelectionStart(null);
         setSelectionEnd(null);
+        selectionStartRef.current = null;
+        selectionEndRef.current = null;
     };
 
     // Attach global mouseup
     useEffect(() => {
         window.addEventListener('mouseup', handleMouseUp);
         return () => window.removeEventListener('mouseup', handleMouseUp);
-    }, [selectionStart, selectionEnd, selectedBrush, schedule, isLocked]);
+    }, [selectedBrush, schedule, isLocked]); // Removed selectionStart/End dependencies to prevent churn
 
 
     // --- Calculations ---
