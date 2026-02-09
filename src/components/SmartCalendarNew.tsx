@@ -69,17 +69,23 @@ export function SmartCalendar() {
     useEffect(() => {
         if (autoScrollSpeed === 0) return;
 
+        console.log('⚡ Starting scroll loop, speed:', autoScrollSpeed);
         let animationFrameId: number;
 
         const scrollLoop = () => {
             if (scrollContainerRef.current) {
+                const oldScrollTop = scrollContainerRef.current.scrollTop;
                 scrollContainerRef.current.scrollTop += autoScrollSpeed;
+                console.log('📜 Scrolling:', { oldScrollTop, newScrollTop: scrollContainerRef.current.scrollTop, speed: autoScrollSpeed });
             }
             animationFrameId = requestAnimationFrame(scrollLoop);
         };
 
         animationFrameId = requestAnimationFrame(scrollLoop);
-        return () => cancelAnimationFrame(animationFrameId);
+        return () => {
+            console.log('🛑 Stopping scroll loop');
+            cancelAnimationFrame(animationFrameId);
+        };
     }, [autoScrollSpeed]);
 
 
@@ -216,11 +222,15 @@ export function SmartCalendar() {
                 if (distanceFromTop < threshold) {
                     // Near top of screen -> scroll up
                     const intensity = (threshold - distanceFromTop) / threshold;
-                    setAutoScrollSpeed(-maxSpeed * intensity);
+                    const speed = -maxSpeed * intensity;
+                    console.log('🔼 SCROLL UP:', { distanceFromTop, intensity, speed });
+                    setAutoScrollSpeed(speed);
                 } else if (distanceFromBottom < threshold) {
                     // Near bottom of screen -> scroll down
                     const intensity = (threshold - distanceFromBottom) / threshold;
-                    setAutoScrollSpeed(maxSpeed * intensity);
+                    const speed = maxSpeed * intensity;
+                    console.log('🔽 SCROLL DOWN:', { distanceFromBottom, intensity, speed });
+                    setAutoScrollSpeed(speed);
                 } else {
                     setAutoScrollSpeed(0);
                 }
