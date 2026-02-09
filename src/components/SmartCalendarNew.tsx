@@ -429,9 +429,53 @@ export function SmartCalendar() {
                                                 return (
                                                     <td
                                                         key={colIndex}
-                                                        className="p-0 border-r border-slate-800/30 relative h-8 cursor-pointer group"
+                                                        data-col={colIndex}
+                                                        data-row={rowIndex}
+                                                        className="p-0 border-r border-slate-800/30 relative h-8 cursor-pointer group touch-none" // touch-none prevents scroll
                                                         onMouseDown={() => handleMouseDown(colIndex, rowIndex)}
                                                         onMouseEnter={() => handleMouseEnter(colIndex, rowIndex)}
+                                                        onTouchStart={(e) => {
+                                                            if (isLocked) return;
+                                                            // Prevent default to stop scrolling and mouse emulation (avoids double events)
+                                                            // However, if we want scrolling to work when NOT selecting... 
+                                                            // For now, we prioritize SELECTION on the grid.
+                                                            // e.preventDefault(); 
+                                                            // Actually, let's allow scroll unless we decide to drag?
+                                                            // But to ensure 'touchstart' -> 'touchmove' works seamlessly for drawing:
+                                                            // modifying styles to touch-action: none via class 'touch-none' is best.
+
+                                                            handleMouseDown(colIndex, rowIndex);
+                                                        }}
+                                                        onTouchMove={(e) => {
+                                                            if (isLocked || !selectionStartRef.current) return;
+                                                            // e.preventDefault(); // Try to block scroll if we are selecting
+
+                                                            const touch = e.touches[0];
+                                                            const target = document.elementFromPoint(touch.clientX, touch.clientY);
+                                                            if (target) {
+                                                                // Use closest 'td' to find the cell, in case we hit the span or div inside
+                                                                const cell = target.closest('td');
+                                                                if (cell) {
+                                                                    const c = cell.getAttribute('data-col');
+                                                                    const r = cell.getAttribute('data-row');
+                                                                    if (c && r) {
+                                                                        const col = parseInt(c);
+                                                                        const row = parseInt(r);
+
+                                                                        // Only update if changed
+                                                                        const currentEnd = selectionEndRef.current;
+                                                                        if (!currentEnd || currentEnd.col !== col || currentEnd.row !== row) {
+                                                                            handleMouseEnter(col, row);
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                        }}
+                                                        onTouchEnd={(e) => {
+                                                            if (isLocked) return;
+                                                            // e.preventDefault();
+                                                            handleMouseUp();
+                                                        }}
                                                     >
                                                         {/* Committed Layer */}
                                                         {labelObj && (
