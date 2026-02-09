@@ -225,14 +225,98 @@ export function SmartCalendar() {
     // --- Calculations ---
     // Helper to check if a cell is inside the CURRENT selection rect (for visual preview)
     const isCellSelected = (col: number, row: number) => {
-        if (!selectionStart || !selectionEnd) return false;
-        const minCol = Math.min(selectionStart.col, selectionEnd.col);
-        const maxCol = Math.max(selectionStart.col, selectionEnd.col);
-        const minRow = Math.min(selectionStart.row, selectionEnd.row);
-        const maxRow = Math.max(selectionStart.row, selectionEnd.row);
+        if (!selectionStart) return false;
+
+        // Use current selection end (dragging) or fallback to start (single click)
+        const end = selectionEnd || selectionStart;
+
+        const minCol = Math.min(selectionStart.col, end.col);
+        const maxCol = Math.max(selectionStart.col, end.col);
+        const minRow = Math.min(selectionStart.row, end.row);
+        const maxRow = Math.max(selectionStart.row, end.row);
 
         return col >= minCol && col <= maxCol && row >= minRow && row <= maxRow;
     };
+
+    // --- Native Touch Handling for Mobile Selection ---
+    const tbodyRef = useRef<HTMLTableSectionElement>(null);
+
+    useEffect(() => {
+        const tbody = tbodyRef.current;
+        if (!tbody) return;
+
+        const handleTouchStart = (e: TouchEvent) => {
+            const touch = e.touches[0];
+            touchStartPosition.current = { x: touch.clientX, y: touch.clientY };
+            isLongPressActive.current = false;
+
+            // Start Long Press Timer (500ms)
+            longPressTimer.current = setTimeout(() => {
+                isLongPressActive.current = true;
+                if (navigator.vibrate) navigator.vibrate(50); // Haptic feedback
+
+                const element = document.elementFromPoint(touch.clientX, touch.clientY);
+                const cell = element?.closest('td[data-col]');
+                if (cell) {
+                    const col = parseInt(cell.getAttribute('data-col') || '0');
+                    const row = parseInt(cell.getAttribute('data-row') || '0');
+                    handleMouseDown(col, row);
+                }
+            }, 400); // 400ms threshold
+        };
+
+        const handleTouchMove = (e: TouchEvent) => {
+            const touch = e.touches[0];
+            const startX = touchStartPosition.current?.x || 0;
+            const startY = touchStartPosition.current?.y || 0;
+            const moveX = Math.abs(touch.clientX - startX);
+            const moveY = Math.abs(touch.clientY - startY);
+
+            // If moved significantly before timer fires, cancel timer (it's a scroll)
+            if (!isLongPressActive.current && (moveX > 10 || moveY > 10)) {
+                if (longPressTimer.current) {
+                    clearTimeout(longPressTimer.current);
+                    longPressTimer.current = null;
+                }
+            }
+
+            // If Long Press IS active, lock scroll and update selection
+            if (isLongPressActive.current) {
+                if (e.cancelable) e.preventDefault(); // STOP SCROLLING
+
+                const element = document.elementFromPoint(touch.clientX, touch.clientY);
+                const cell = element?.closest('td[data-col]');
+                if (cell) {
+                    const col = parseInt(cell.getAttribute('data-col') || '0');
+                    const row = parseInt(cell.getAttribute('data-row') || '0');
+                    handleMouseEnter(col, row);
+                }
+            }
+        };
+
+        const handleTouchEnd = () => {
+            if (longPressTimer.current) {
+                clearTimeout(longPressTimer.current);
+                longPressTimer.current = null;
+            }
+
+            if (isLongPressActive.current) {
+                handleMouseUp();
+                isLongPressActive.current = false;
+            }
+        };
+
+        // Add listeners with passive: false for touchmove
+        tbody.addEventListener('touchstart', handleTouchStart, { passive: true });
+        tbody.addEventListener('touchmove', handleTouchMove, { passive: false });
+        tbody.addEventListener('touchend', handleTouchEnd);
+
+        return () => {
+            tbody.removeEventListener('touchstart', handleTouchStart);
+            tbody.removeEventListener('touchmove', handleTouchMove);
+            tbody.removeEventListener('touchend', handleTouchEnd);
+        };
+    }, [handleMouseDown, handleMouseEnter, handleMouseUp]);
 
     const slots = [];
     let currentMin = config.startHour * 60;
@@ -350,8 +434,7 @@ export function SmartCalendar() {
                                     )}
                                     style={{
                                         backgroundColor: `${lbl.color}10`,
-                                        borderColor: lbl.color,
-                                        color: lbl.color
+                                        borderColor: lbl.color
                                     }}
                                 >
                                     <div className="w-1.5 h-1.5 rounded-full shadow-[0_0_5px_currentColor]" style={{ backgroundColor: lbl.color }} />
@@ -455,67 +538,7 @@ export function SmartCalendar() {
                                         ))}
                                     </tr>
                                 </thead>
-                                <tbody
-                                    onTouchStart={(e) => {
-                                        const touch = e.touches[0];
-                                        touchStartPosition.current = { x: touch.clientX, y: touch.clientY };
-                                        isLongPressActive.current = false;
-
-                                        // Start Long Press Timer (500ms)
-                                        longPressTimer.current = setTimeout(() => {
-                                            isLongPressActive.current = true;
-                                            if (navigator.vibrate) navigator.vibrate(50); // Haptic feedback
-
-                                            const element = document.elementFromPoint(touch.clientX, touch.clientY);
-                                            const cell = element?.closest('td[data-col]');
-                                            if (cell) {
-                                                const col = parseInt(cell.getAttribute('data-col') || '0');
-                                                const row = parseInt(cell.getAttribute('data-row') || '0');
-                                                handleMouseDown(col, row);
-                                            }
-                                        }, 400); // 400ms threshold for "Long Press"
-                                    }}
-                                    onTouchMove={(e) => {
-                                        const touch = e.touches[0];
-                                        const startX = touchStartPosition.current?.x || 0;
-                                        const startY = touchStartPosition.current?.y || 0;
-                                        const moveX = Math.abs(touch.clientX - startX);
-                                        const moveY = Math.abs(touch.clientY - startY);
-
-                                        // If moved significantly before timer fires, cancel timer (it's a scroll)
-                                        if (!isLongPressActive.current && (moveX > 10 || moveY > 10)) {
-                                            if (longPressTimer.current) {
-                                                clearTimeout(longPressTimer.current);
-                                                longPressTimer.current = null;
-                                            }
-                                        }
-
-                                        // If Long Press IS active, lock scroll and update selection
-                                        if (isLongPressActive.current) {
-                                            if (e.cancelable) e.preventDefault();
-
-                                            const element = document.elementFromPoint(touch.clientX, touch.clientY);
-                                            const cell = element?.closest('td[data-col]');
-                                            if (cell) {
-                                                const col = parseInt(cell.getAttribute('data-col') || '0');
-                                                const row = parseInt(cell.getAttribute('data-row') || '0');
-                                                handleMouseEnter(col, row);
-                                            }
-                                        }
-                                    }}
-                                    onTouchEnd={() => {
-                                        if (longPressTimer.current) {
-                                            clearTimeout(longPressTimer.current);
-                                            longPressTimer.current = null;
-                                        }
-
-                                        if (isLongPressActive.current) {
-                                            handleMouseUp();
-                                            isLongPressActive.current = false;
-                                        }
-                                        // If NOT long press, native Click event will handle single selection
-                                    }}
-                                >
+                                <tbody ref={tbodyRef}>
                                     {slots.map((slot, rowIndex) => (
                                         <tr key={rowIndex} className="border-b border-slate-200 hover:bg-slate-100 transition-colors h-8">
                                             <td className="py-2 px-0 text-center text-slate-500 font-mono text-[9px] border-r border-slate-200 relative group/time">
