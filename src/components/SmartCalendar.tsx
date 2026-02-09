@@ -715,7 +715,7 @@ export function SmartCalendar() {
                     "flex-none p-2 flex justify-between items-center z-30 bg-white border-b border-slate-200 shadow-sm transition-all duration-300",
                     isLocked && "hidden" // HIDE in Viewing Mode
                 )}>
-                    <div className="font-bold text-xs text-slate-500 uppercase tracking-wider ml-2">
+                    <div className="font-bold text-xs text-slate-500 uppercase tracking-wider ml-2 hidden sm:block">
                         {t('editingMode')}
                     </div>
                     <div className="flex items-center gap-2">
