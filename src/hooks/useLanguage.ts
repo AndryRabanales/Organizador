@@ -67,7 +67,8 @@ const LOCALE_DATA = {
         continueGoogle: 'Continue with Google',
         connecting: 'Connecting...',
         secureBadge: 'Secure Encryption via Supabase',
-        copyright: 'BIO Organizer System'
+        copyright: 'BIO Organizer System',
+        editingMode: 'Editing Mode'
     },
     es: {
         // Days
@@ -133,7 +134,8 @@ const LOCALE_DATA = {
         continueGoogle: 'Continuar con Google',
         connecting: 'Conectando...',
         secureBadge: 'Encriptación Segura vía Supabase',
-        copyright: 'Sistema Organizador BIO'
+        copyright: 'Sistema Organizador BIO',
+        editingMode: 'Modo Edición'
     }
 };
 
