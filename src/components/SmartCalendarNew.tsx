@@ -1,7 +1,7 @@
 import { useCalendarStore, DEFAULT_LABELS } from '../store/calendarStore';
 import { Button } from './Button';
 import clsx from 'clsx';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -89,12 +89,12 @@ export function SmartCalendar() {
     }, [autoScrollSpeed]);
 
 
-    // Drag Logic
-    const handleMouseDown = (col: number, row: number) => {
+    // Drag Logic - useCallback to stabilize references
+    const handleMouseDown = useCallback((col: number, row: number) => {
         if (isLocked) return;
         const start = { col, row };
         setSelectionStart(start);
-        setSelectionEnd(start); // Init end same as start
+        setSelectionEnd(start);
 
         // BLOCK page scroll during selection
         document.body.style.overflow = 'hidden';
@@ -102,9 +102,9 @@ export function SmartCalendar() {
         // Sync refs
         selectionStartRef.current = start;
         selectionEndRef.current = start;
-    };
+    }, [isLocked]);
 
-    const handleMouseEnter = (col: number, row: number) => {
+    const handleMouseEnter = useCallback((col: number, row: number) => {
         if (isLocked) return;
         if (selectionStart) {
             const end = { col, row };
@@ -112,9 +112,9 @@ export function SmartCalendar() {
             // Sync ref
             selectionEndRef.current = end;
         }
-    };
+    }, [isLocked, selectionStart]);
 
-    const handleMouseUp = () => {
+    const handleMouseUp = useCallback(() => {
         // Stop auto-scroll
         setAutoScrollSpeed(0);
 
@@ -168,7 +168,7 @@ export function SmartCalendar() {
         setSelectionEnd(null);
         selectionStartRef.current = null;
         selectionEndRef.current = null;
-    };
+    }, [isLocked, selectedBrush, schedule, setCellsBatch]);
 
     // Global Auto-scroll check on mouse move (only if selecting)
     useEffect(() => {
@@ -205,7 +205,7 @@ export function SmartCalendar() {
     useEffect(() => {
         window.addEventListener('mouseup', handleMouseUp);
         return () => window.removeEventListener('mouseup', handleMouseUp);
-    }, [selectedBrush, schedule, isLocked]); // Removed selectionStart/End dependencies to prevent churn
+    }, [handleMouseUp]);
 
     // Global Touch Controller (for Auto-Scroll "Word-like" behavior on Mobile)
     useEffect(() => {
@@ -280,7 +280,6 @@ export function SmartCalendar() {
                 setAutoScrollSpeed(0);
             }
         };
-
         // Attach non-passive listener to allow preventDefault()
         // We attach to window or document to catch drags that go "off grid"
         window.addEventListener('touchmove', handleGlobalTouchMove, { passive: false });
@@ -290,7 +289,7 @@ export function SmartCalendar() {
             window.removeEventListener('touchmove', handleGlobalTouchMove);
             window.removeEventListener('touchend', handleGlobalTouchEnd);
         };
-    }, [isLocked]); // Re-attach if lock status changes (though refs handle state)
+    }, [isLocked, handleMouseEnter, handleMouseUp]); // Include handler dependencies
 
 
     // Touch Auto-Scroll Logic integration
