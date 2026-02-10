@@ -27,6 +27,7 @@ export type ToolName =
     | 'add_story'
     | 'clear_calendar'
     | 'clear_labels'
+    | 'fill_calendar'
     | 'toggle_lock';
 
 export interface AIAction {
@@ -201,6 +202,26 @@ export const AI_TOOLS = {
         return `Cleared blocks on day ${dayIndex} from ${startHour}:${startMinute}.`;
     },
 
+    fill_calendar: async ({ labelName }: { labelName: string }) => {
+        const store = getStore();
+        const label = store.labels.find(l => l.name.toLowerCase() === labelName.toLowerCase());
+        if (!label) return `Error: Label "${labelName}" not found.`;
+
+        const { startHour, endHour, stepMinutes } = store.config;
+        const totalMinutes = (endHour - startHour) * 60;
+        const slotsPerDay = Math.floor(totalMinutes / stepMinutes);
+
+        const cells = [];
+        for (let d = 0; d < 7; d++) {
+            for (let s = 0; s < slotsPerDay; s++) {
+                cells.push({ day: d, slot: s });
+            }
+        }
+
+        store.setCellsBatch(cells, label.id);
+        return `Filled entire calendar with "${labelName}".`;
+    },
+
     set_block_note: async ({ dayIndex, hour, minute, note }: { dayIndex: number, hour: number, minute: number, note: string }) => {
         const store = getStore();
         const step = store.config.stepMinutes;
@@ -300,6 +321,7 @@ export async function executeAIAction(rawAction: any) {
         case 'add_story': return AI_TOOLS.add_story(params); // create_reminder aliased here
         case 'clear_calendar': return AI_TOOLS.clear_calendar();
         case 'clear_labels': return AI_TOOLS.clear_labels();
+        case 'fill_calendar': return AI_TOOLS.fill_calendar(params);
         case 'toggle_lock': return AI_TOOLS.toggle_lock(params);
         default:
             console.warn(`[AI EXEC] Unknown tool: ${toolName}`);
