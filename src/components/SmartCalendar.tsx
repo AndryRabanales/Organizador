@@ -263,7 +263,7 @@ export function SmartCalendar() {
         // Ensure within bounds
         if (currentMinutes < startMinutes || currentMinutes > config.endHour * 60) return null;
 
-        const slotIndex = Math.floor((currentMinutes - startMinutes) / config.step);
+        const slotIndex = Math.floor((currentMinutes - startMinutes) / config.stepMinutes);
         const cellKey = `${currentDayIndex}-${slotIndex}`;
         const labelId = schedule[cellKey];
 
