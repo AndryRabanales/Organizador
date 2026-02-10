@@ -4,7 +4,6 @@ import clsx from 'clsx';
 import { useState, useEffect, useRef, memo, useCallback, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { WordEditor } from './WordEditor';
-import { AIPromptBox } from './AIPromptBox';
 
 import { useLanguage } from '../hooks/useLanguage';
 
