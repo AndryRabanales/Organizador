@@ -275,7 +275,7 @@ export function SmartCalendar() {
         const cellKey = `${currentDayIndex}-${slotIndex}`;
         const labelId = schedule[cellKey];
 
-        if (!labelId) return null;
+
 
         const label = labels.find(l => l.id === labelId);
 
