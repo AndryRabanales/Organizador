@@ -152,18 +152,7 @@ export function SmartCalendar() {
         setIsProcessingAI(false);
     };
 
-    // --- AI AGENT STATE ---
-    const [showAIPrompt, setShowAIPrompt] = useState(false);
-    const [isProcessingAI, setIsProcessingAI] = useState(false);
 
-    const handleAIExecute = async (prompt: string) => {
-        setIsProcessingAI(true);
-        // Simulation for now
-        console.log("AI Prompt:", prompt);
-        await new Promise(r => setTimeout(r, 2000));
-        setIsProcessingAI(false);
-        setShowAIPrompt(false);
-    };
 
     // --- APP MODES (View -> Edit -> Focus) ---
     const [appMode, setAppMode] = useState<'view' | 'edit' | 'focus'>(() => {
