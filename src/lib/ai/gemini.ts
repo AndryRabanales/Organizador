@@ -25,7 +25,7 @@ export async function generateAIResponse(
     try {
         // 2. Prepare Model
         const model = genAI.getGenerativeModel({
-            model: "gemini-2.5-flash",
+            model: "gemini-2.0-flash",
             generationConfig: {
                 responseMimeType: "application/json"
             }
@@ -66,8 +66,17 @@ export async function generateAIResponse(
 
         return aiResponse;
 
-    } catch (error) {
+    } catch (error: any) {
         console.error("Gemini API Error:", error);
+
+        // Check for 429 / Quota Exceeded
+        if (error.message?.includes('429') || error.message?.includes('Quota') || error.status === 429) {
+            return {
+                user_message: "⚠️ Límite de velocidad alcanzado (Plan Gratuito). Por favor espera unos segundos antes de intentar de nuevo.",
+                tool_calls: []
+            };
+        }
+
         return {
             user_message: "Lo siento, hubo un error conectando con la inteligencia artificial. Verifica tu conexión o intenta de nuevo.",
             tool_calls: []
