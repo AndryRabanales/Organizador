@@ -4,6 +4,7 @@ import clsx from 'clsx';
 import { useState, useEffect, useRef, memo, useCallback, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { WordEditor } from './WordEditor';
+import { AIPromptBox } from './AIPromptBox';
 
 import { useLanguage } from '../hooks/useLanguage';
 
@@ -138,6 +139,19 @@ export function SmartCalendar() {
     const [showTrash, setShowTrash] = useState(false);
     const [confirmModal, setConfirmModal] = useState<{ message: string, onConfirm: () => void, onCancel?: () => void } | null>(null);
     const [activeBottomPanel, setActiveBottomPanel] = useState<'none' | 'config' | 'story'>('none');
+
+    // --- AI AGENT STATE ---
+    const [showAIPrompt, setShowAIPrompt] = useState(false);
+    const [isProcessingAI, setIsProcessingAI] = useState(false);
+
+    const handleAIExecute = async (prompt: string) => {
+        setIsProcessingAI(true);
+        // Simulation for now
+        console.log("AI Prompt:", prompt);
+        await new Promise(r => setTimeout(r, 2000));
+        setIsProcessingAI(false);
+        setShowAIPrompt(false);
+    };
 
     // --- APP MODES (View -> Edit -> Focus) ---
     const [appMode, setAppMode] = useState<'view' | 'edit' | 'focus'>(() => {
@@ -795,6 +809,17 @@ export function SmartCalendar() {
                         </h1>
                     </div>
                     <div className="flex items-center gap-4">
+                        {/* AI Director Button (Only in View Mode) */}
+                        {appMode === 'view' && (
+                            <button
+                                onClick={() => setShowAIPrompt(true)}
+                                className="px-3 py-1.5 rounded-xl bg-violet-600/10 hover:bg-violet-600/20 text-violet-600 border border-violet-200/50 transition-all font-bold text-sm shadow-sm backdrop-blur flex items-center gap-2 hover:scale-105 active:scale-95 shimmer"
+                                title="Open AI Director"
+                            >
+                                <span className="text-lg">✨</span>
+                                <span className="hidden sm:inline">AI Director</span>
+                            </button>
+                        )}
                         <div className="px-4 py-1.5 rounded-xl bg-white/80 border border-slate-200 font-mono text-emerald-600 font-bold text-sm backdrop-blur shadow-sm">
                             {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                         </div>
@@ -1603,6 +1628,13 @@ export function SmartCalendar() {
                     </div>
                 )
             }
+            {/* AI Prompt Box */}
+            <AIPromptBox
+                isOpen={showAIPrompt}
+                onClose={() => setShowAIPrompt(false)}
+                onExecute={handleAIExecute}
+                isProcessing={isProcessingAI}
+            />
         </div >
     );
 }
