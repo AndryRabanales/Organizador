@@ -1,5 +1,5 @@
 import clsx from 'clsx';
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, memo } from 'react';
 
 interface WordEditorProps {
     label: string;
@@ -11,7 +11,7 @@ interface WordEditorProps {
     disabled?: boolean;
 }
 
-export function WordEditor({ label, subLabel, value, onChange, color, placeholder, disabled }: WordEditorProps) {
+function WordEditorComponent({ label, subLabel, value, onChange, color, placeholder, disabled }: WordEditorProps) {
     const editorRef = useRef<HTMLDivElement>(null);
     const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const lastEmittedValue = useRef(value);
@@ -119,3 +119,15 @@ export function WordEditor({ label, subLabel, value, onChange, color, placeholde
         </div>
     );
 }
+
+// Export memoized component with strict comparison (ignore function reference changes)
+export const WordEditor = memo(WordEditorComponent, (prev, next) => {
+    return (
+        prev.value === next.value &&
+        prev.label === next.label &&
+        prev.color === next.color &&
+        prev.disabled === next.disabled &&
+        prev.subLabel === next.subLabel &&
+        prev.placeholder === next.placeholder
+    );
+});
