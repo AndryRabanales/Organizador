@@ -140,16 +140,24 @@ export function SmartCalendar() {
     const [activeBottomPanel, setActiveBottomPanel] = useState<'none' | 'config' | 'story'>('none');
 
     // --- APP MODES (View -> Edit -> Focus) ---
-    const [appMode, setAppMode] = useState<'view' | 'edit' | 'focus'>('view');
+    const [appMode, setAppMode] = useState<'view' | 'edit' | 'focus'>(() => {
+        // Persist mode across reloads
+        if (typeof window !== 'undefined') {
+            const saved = localStorage.getItem('smartCalendarAppMode');
+            if (saved === 'view' || saved === 'edit' || saved === 'focus') return saved;
+        }
+        return 'view'; // Default
+    });
+
+    // Sync appMode persistence
+    useEffect(() => {
+        localStorage.setItem('smartCalendarAppMode', appMode);
+    }, [appMode]);
 
     // Sync appMode with store's isLocked
     useEffect(() => {
         const shouldBeLocked = appMode !== 'edit';
         if (isLocked !== shouldBeLocked) {
-            // We use the store's toggleLock because setIsLocked might not be exposed directly
-            // If toggleLock just flips the boolean, we need to be careful.
-            // But looking at the store usage, we should probably check if we can setIsLocked.
-            // If not, we rely on toggleLock IF the state doesn't match.
             toggleLock();
         }
     }, [appMode]);
@@ -270,14 +278,23 @@ export function SmartCalendar() {
         if (!labelId) return null;
 
         const label = labels.find(l => l.id === labelId);
-        if (!label) return null;
+
+        // If no label, return a "Free Time" placeholder so the bubble STILL appears (User confirmation)
+        if (!labelId || !label) {
+            return {
+                label: { name: t('freeTime') || "Free Time", color: "#94a3b8" } as any, // Mock label
+                globalNote: null,
+                instanceNote: null,
+                isPlaceholder: true
+            };
+        }
 
         // Get notes
         const globalNote = label.notes;
         const instanceNote = instanceNotes[cellKey];
 
-        return { label, globalNote, instanceNote };
-    }, [appMode, now, config, schedule, labels, instanceNotes, currentDayIndex]);
+        return { label, globalNote, instanceNote, isPlaceholder: false };
+    }, [appMode, now, config, schedule, labels, instanceNotes, currentDayIndex, t]);
 
     const handleAddStory = () => {
         if (newStoryTitle.trim()) {
