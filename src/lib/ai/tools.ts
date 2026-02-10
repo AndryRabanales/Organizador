@@ -275,6 +275,7 @@ export async function executeAIAction(rawAction: any) {
     if (toolName === 'config_calendar') toolName = 'set_config';
     if (toolName === 'create_reminder') toolName = 'add_story';
     if (toolName === 'place_label_on_all_slots') toolName = 'fill_calendar';
+    if (toolName === 'fill_calendar_with_label') toolName = 'fill_calendar';
 
     // --- PARAMETER NORMALIZATION (Fix Types) ---
 
@@ -305,6 +306,11 @@ export async function executeAIAction(rawAction: any) {
     // 3. Tool-Specific Fixes
     if (toolName === 'create_label') {
         if (!params.color) params.color = '#3b82f6'; // Default Blue
+    }
+
+    // Fix label management params (AI often uses "label" instead of "name")
+    if (['create_label', 'delete_label', 'select_label'].includes(toolName)) {
+        if (params.label && !params.name) params.name = params.label;
     }
 
     if (toolName === 'update_label') {
