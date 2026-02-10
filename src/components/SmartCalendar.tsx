@@ -829,7 +829,7 @@ export function SmartCalendar() {
                 <div ref={containerRef} className="flex-1 overflow-auto p-0 pt-0 custom-scrollbar overscroll-x-none">
                     <div className={clsx(
                         "glass-panel p-1 relative select-none transition-all duration-500 mb-16",
-                        appMode === 'focus' ? "w-full max-w-sm mx-auto shadow-2xl ring-1 ring-slate-900/5 bg-white" : "w-full max-w-none mx-auto"
+                        appMode === 'focus' ? "w-[90%] max-w-[340px] mx-auto shadow-2xl ring-1 ring-slate-900/5 bg-white rounded-xl my-4" : "w-full max-w-none mx-auto"
                     )}>
                         {/* Real-time Arrow */}
                         {isTimeVisible && (
