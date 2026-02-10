@@ -26,6 +26,7 @@ export type ToolName =
     | 'set_block_note'
     | 'add_story'
     | 'clear_calendar'
+    | 'clear_labels'
     | 'toggle_lock';
 
 export interface AIAction {
@@ -113,6 +114,19 @@ export const AI_TOOLS = {
         const label = getStore().labels.find(l => l.name.toLowerCase() === name.toLowerCase());
         if (!label) return `Error: Label "${name}" not found.`;
         return { type: 'SELECT_LABEL', labelId: label.id, message: `Selected label "${name}"` };
+    },
+
+    clear_labels: async () => {
+        const store = getStore();
+        const labelIds = store.labels.map(l => l.id);
+
+        // Loop and remove each (this triggers unsaved changes + pending ops for each)
+        // Ideally the store would have a batch delete, but this is safe for now
+        for (const id of labelIds) {
+            store.removeLabel(id);
+        }
+
+        return `Deleted all ${labelIds.length} labels.`;
     },
 
     // 2. Configuration
@@ -249,6 +263,7 @@ export async function executeAIAction(rawAction: any) {
         case 'set_block_note': return AI_TOOLS.set_block_note(params);
         case 'add_story': return AI_TOOLS.add_story(params);
         case 'clear_calendar': return AI_TOOLS.clear_calendar();
+        case 'clear_labels': return AI_TOOLS.clear_labels();
         case 'toggle_lock': return AI_TOOLS.toggle_lock(params);
         default:
             console.warn(`[AI EXEC] Unknown tool: ${toolName}`);
