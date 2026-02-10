@@ -25,6 +25,8 @@ export type ToolName =
     | 'clear_blocks'
     | 'set_block_note'
     | 'add_story'
+    | 'update_story'
+    | 'delete_story'
     | 'clear_calendar'
     | 'clear_labels'
     | 'fill_calendar'
@@ -69,7 +71,7 @@ CAPABILITIES:
 1. LABELS: Create, color, select, and delete labels. Update global notes.
 2. SCHEDULING: Place labels, clear specific blocks, edit specific block notes.
 3. CONFIGURATION: Resize calendar (start/end hour), change steps (5/15/30/60 min), set range.
-4. STORIES/REMINDERS: Create reminders with specific day/time/title/description.
+4. STORIES/REMINDERS: Create, edit, and delete reminders/stories.
 5. MAINTENANCE: Clear the entire calendar if requested.
 `;
 
@@ -301,6 +303,8 @@ export async function executeAIAction(rawAction: any) {
     if (toolName === 'create_reminder') toolName = 'add_story';
     if (toolName === 'place_label_on_all_slots') toolName = 'fill_calendar';
     if (toolName === 'fill_calendar_with_label') toolName = 'fill_calendar';
+    if (toolName === 'edit_story') toolName = 'update_story';
+    if (toolName === 'remove_story') toolName = 'delete_story';
 
     // --- PARAMETER NORMALIZATION (Fix Types) ---
 
@@ -359,7 +363,9 @@ export async function executeAIAction(rawAction: any) {
         case 'schedule_event': return AI_TOOLS.schedule_event(params);
         case 'clear_blocks': return AI_TOOLS.clear_blocks(params);
         case 'set_block_note': return AI_TOOLS.set_block_note(params);
-        case 'add_story': return AI_TOOLS.add_story(params); // create_reminder aliased here
+        case 'add_story': return AI_TOOLS.add_story(params);
+        case 'update_story': return AI_TOOLS.update_story(params); // Added
+        case 'delete_story': return AI_TOOLS.delete_story(params); // Added
         case 'clear_calendar': return AI_TOOLS.clear_calendar();
         case 'clear_labels': return AI_TOOLS.clear_labels();
         case 'fill_calendar': return AI_TOOLS.fill_calendar(params);
