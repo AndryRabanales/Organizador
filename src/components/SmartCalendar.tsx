@@ -886,14 +886,16 @@ export function SmartCalendar() {
                                                     {(currentBlockInfo.globalNote || currentBlockInfo.instanceNote) ? (
                                                         <div className="text-xs text-slate-600 mt-1 space-y-1">
                                                             {currentBlockInfo.instanceNote && (
-                                                                <p className="bg-yellow-50 p-1 rounded border border-yellow-100 italic">
-                                                                    "{currentBlockInfo.instanceNote}"
-                                                                </p>
+                                                                <div
+                                                                    className="bg-yellow-50 p-1.5 rounded border border-yellow-100 [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4 [&_li]:marker:text-slate-400"
+                                                                    dangerouslySetInnerHTML={{ __html: currentBlockInfo.instanceNote }}
+                                                                />
                                                             )}
                                                             {currentBlockInfo.globalNote && (
-                                                                <p className="opacity-80 line-clamp-2">
-                                                                    {currentBlockInfo.globalNote}
-                                                                </p>
+                                                                <div
+                                                                    className="opacity-80 line-clamp-3 [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4"
+                                                                    dangerouslySetInnerHTML={{ __html: currentBlockInfo.globalNote }}
+                                                                />
                                                             )}
                                                         </div>
                                                     ) : (
