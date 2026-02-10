@@ -246,6 +246,31 @@ export const AI_TOOLS = {
         return `Created reminder "${title}" for day ${dayIndex} at ${hour}:${minute}.`;
     },
 
+    update_story: async ({ currentTitle, newTitle, newContent, newDay, newHour, newMinute }: { currentTitle: string, newTitle?: string, newContent?: string, newDay?: number, newHour?: number, newMinute?: number }) => {
+        const store = getStore();
+        const story = store.stories.find(s => s.title.toLowerCase().includes(currentTitle.toLowerCase()));
+        if (!story) return `Error: Story containing "${currentTitle}" not found.`;
+
+        const updates: any = {};
+        if (newTitle) updates.title = newTitle;
+        if (newContent) updates.content = newContent;
+        if (newDay !== undefined) updates.dayIndex = newDay;
+        if (newHour !== undefined) updates.hour = newHour;
+        if (newMinute !== undefined) updates.minute = newMinute;
+
+        store.updateStory(story.id, updates);
+        return `Updated story "${story.title}".`;
+    },
+
+    delete_story: async ({ title }: { title: string }) => {
+        const store = getStore();
+        const story = store.stories.find(s => s.title.toLowerCase().includes(title.toLowerCase()));
+        if (!story) return `Error: Story containing "${title}" not found.`;
+
+        store.removeStory(story.id);
+        return `Deleted story "${story.title}".`;
+    },
+
     // 5. Maintenance
     clear_calendar: async () => {
         getStore().clearSchedule();
