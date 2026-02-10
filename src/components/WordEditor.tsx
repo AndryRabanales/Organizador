@@ -13,7 +13,7 @@ interface WordEditorProps {
 
 export function WordEditor({ label, subLabel, value, onChange, color, placeholder, disabled }: WordEditorProps) {
     const editorRef = useRef<HTMLDivElement>(null);
-    const debounceTimer = useRef<NodeJS.Timeout | null>(null);
+    const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const lastEmittedValue = useRef(value);
 
     // Sync external value to innerHTML
