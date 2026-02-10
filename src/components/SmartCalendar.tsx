@@ -226,6 +226,59 @@ export function SmartCalendar() {
     const [newStoryHour, setNewStoryHour] = useState(8);
     const [newStoryMinute, setNewStoryMinute] = useState(0);
 
+    // Focus Info State
+    const [showFocusInfo, setShowFocusInfo] = useState(true);
+
+    // Reset Info Card and Auto-Scroll when entering Focus Mode
+    useEffect(() => {
+        if (appMode === 'focus') {
+            setShowFocusInfo(true);
+            // Auto-Scroll to current time
+            if (containerRef.current) {
+                const currentMinutes = new Date().getHours() * 60 + new Date().getMinutes();
+                const startMinutes = config.startHour * 60;
+                const totalMinutes = (config.endHour - config.startHour) * 60;
+                const percentage = Math.max(0, Math.min(100, ((currentMinutes - startMinutes) / totalMinutes) * 100));
+
+                // Calculate pixel position (approximate based on container scrollHeight)
+                // Better approach: calculate based on percentage of scrollHeight
+                const scrollHeight = containerRef.current.scrollHeight;
+                const targetScroll = (scrollHeight * percentage / 100) - 150; // -150px offset to center/show context
+
+                containerRef.current.scrollTo({
+                    top: targetScroll,
+                    behavior: 'smooth'
+                });
+            }
+        }
+    }, [appMode, config.startHour, config.endHour]);
+
+    // Current Block Info Calculation
+    const currentBlockInfo = useMemo(() => {
+        if (appMode !== 'focus') return null;
+
+        const currentMinutes = now.getHours() * 60 + now.getMinutes();
+        const startMinutes = config.startHour * 60;
+
+        // Ensure within bounds
+        if (currentMinutes < startMinutes || currentMinutes > config.endHour * 60) return null;
+
+        const slotIndex = Math.floor((currentMinutes - startMinutes) / config.step);
+        const cellKey = `${currentDayIndex}-${slotIndex}`;
+        const labelId = schedule[cellKey];
+
+        if (!labelId) return null;
+
+        const label = labels.find(l => l.id === labelId);
+        if (!label) return null;
+
+        // Get notes
+        const globalNote = label.notes;
+        const instanceNote = instanceNotes[cellKey];
+
+        return { label, globalNote, instanceNote };
+    }, [appMode, now, config, schedule, labels, instanceNotes, currentDayIndex]);
+
     const handleAddStory = () => {
         if (newStoryTitle.trim()) {
             addStory({
@@ -772,18 +825,71 @@ export function SmartCalendar() {
                 </div>
 
                 {/* Grid */}
+                {/* Grid */}
                 <div ref={containerRef} className="flex-1 overflow-auto p-0 pt-0 custom-scrollbar overscroll-x-none">
-                    <div className={clsx("glass-panel p-1 relative select-none transition-all duration-500 mx-auto w-full max-w-none mb-16")}>
+                    <div className={clsx(
+                        "glass-panel p-1 relative select-none transition-all duration-500 mb-16",
+                        appMode === 'focus' ? "w-full max-w-sm mx-auto shadow-2xl ring-1 ring-slate-900/5 bg-white" : "w-full max-w-none mx-auto"
+                    )}>
                         {/* Real-time Arrow */}
                         {isTimeVisible && (
                             <div
-                                className="absolute w-full flex items-center z-20 pointer-events-none transition-all duration-1000 ease-linear"
+                                className="absolute w-full flex items-center z-30 pointer-events-none transition-all duration-1000 ease-linear"
                                 style={{ top: `calc(36px + (100% - 36px) * ${percentage / 100})` }}
                             >
                                 <div className="w-16 pr-1 flex justify-end">
                                     <div className="text-emerald-600 font-bold text-lg drop-shadow-[0_2px_4px_rgba(0,0,0,0.1)]">➤</div>
                                 </div>
                                 <div className="flex-1 h-0.5 bg-emerald-500/50 shadow-[0_0_10px_rgba(16,185,129,0.3)]"></div>
+
+                                {/* FOCUS INFO CARD (Bubble) */}
+                                {appMode === 'focus' && showFocusInfo && currentBlockInfo && (
+                                    <div className="absolute left-16 right-2 bottom-6 pointer-events-auto animate-in fade-in slide-in-from-bottom-2 duration-500">
+                                        <div className="bg-white/95 backdrop-blur-xl border border-emerald-100 shadow-xl rounded-2xl p-3 relative ring-1 ring-emerald-500/20">
+                                            {/* Close Button */}
+                                            <button
+                                                onClick={() => setShowFocusInfo(false)}
+                                                className="absolute -top-2 -right-2 bg-white text-slate-400 hover:text-red-500 border border-slate-100 rounded-full p-1 shadow-sm transition-colors z-40"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3">
+                                                    <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+                                                </svg>
+                                            </button>
+
+                                            {/* Content */}
+                                            <div className="flex items-start gap-3">
+                                                <div
+                                                    className="shrink-0 w-2 h-10 rounded-full"
+                                                    style={{ backgroundColor: currentBlockInfo.label.color }}
+                                                />
+                                                <div className="flex-1 min-w-0">
+                                                    <h3 className="text-sm font-bold text-slate-900 truncate" style={{ color: currentBlockInfo.label.color }}>
+                                                        {currentBlockInfo.label.name}
+                                                    </h3>
+                                                    {(currentBlockInfo.globalNote || currentBlockInfo.instanceNote) ? (
+                                                        <div className="text-xs text-slate-600 mt-1 space-y-1">
+                                                            {currentBlockInfo.instanceNote && (
+                                                                <p className="bg-yellow-50 p-1 rounded border border-yellow-100 italic">
+                                                                    "{currentBlockInfo.instanceNote}"
+                                                                </p>
+                                                            )}
+                                                            {currentBlockInfo.globalNote && (
+                                                                <p className="opacity-80 line-clamp-2">
+                                                                    {currentBlockInfo.globalNote}
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                    ) : (
+                                                        <p className="text-[10px] text-slate-400 italic mt-0.5">No notes available.</p>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            {/* Little Triangle Pointer */}
+                                            <div className="absolute -bottom-1.5 left-4 w-3 h-3 bg-white border-b border-r border-emerald-100 rotate-45 shadow-sm"></div>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         )}
 
