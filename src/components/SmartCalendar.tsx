@@ -838,7 +838,7 @@ export function SmartCalendar() {
                 )}>
                     <div className="flex items-center gap-2">
                         <h1 className="text-xl font-black text-slate-900 tracking-tighter drop-shadow-sm">
-                            <span className="text-emerald-600">BIO</span> PLANIFICADOR
+                            <span className="text-emerald-600">BIO</span> PLANIFICADOR <span className="text-xs text-emerald-500 font-mono border border-emerald-200 px-1 rounded ml-1 bg-emerald-50">v2.2-AI</span>
                         </h1>
                     </div>
 
