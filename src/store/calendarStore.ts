@@ -92,6 +92,7 @@ interface CalendarState {
     updateLabelNotes: (id: string, notes: string) => void;
     updateInstanceNote: (key: string, notes: string) => void;
     updateDailyNotes: (labelId: string, notes: string) => void;
+    updateLabel: (id: string, updates: { name?: string, color?: string }) => void;
 
     // Story Actions
     addStory: (story: Omit<Story, 'id' | 'createdAt' | 'status'>) => void;
@@ -483,6 +484,16 @@ export const useCalendarStore = create<CalendarState>()(
                     hasUnsavedChanges: true,
                     pendingOps: [...state.pendingOps, async () => {
                         await supabase.from('labels').update({ notes }).eq('id', id);
+                    }]
+                }));
+            },
+
+            updateLabel: async (id, updates) => {
+                set((state) => ({
+                    labels: state.labels.map(l => l.id === id ? { ...l, ...updates } : l),
+                    hasUnsavedChanges: true,
+                    pendingOps: [...state.pendingOps, async () => {
+                        await supabase.from('labels').update(updates).eq('id', id);
                     }]
                 }));
             },

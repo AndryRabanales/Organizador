@@ -145,10 +145,43 @@ export function SmartCalendar() {
 
     const handleAIExecute = async (prompt: string) => {
         setIsProcessingAI(true);
-        // Simulation for now
-        console.log("AI Prompt:", prompt);
-        await new Promise(r => setTimeout(r, 2000));
-        setIsProcessingAI(false);
+        try {
+            // --- REAL GEMINI API LOGIC ---
+            console.log("[DEBUG] AI Execute Triggered v2.1"); // Version Marker
+            // context must match the structure expected by generateAIResponse
+            const context = {
+                now: new Date(),
+                labels: labels, // from store
+                config: config  // from store
+            };
+
+            const { generateAIResponse } = await import('../lib/ai/gemini');
+            const aiResponse = await generateAIResponse(prompt, context);
+
+            // If API key is missing, aiResponse.user_message will contain the error
+
+            // 1. Show User Message
+            console.log("AI says:", aiResponse.user_message);
+            // In a future step, we'll surface this to the UI
+
+            // 2. Execute Action
+            if (aiResponse.tool_call) {
+                const { executeAIAction } = await import('../lib/ai/tools');
+                const result = await executeAIAction(aiResponse.tool_call);
+
+                if (result && typeof result === 'object' && 'type' in result) {
+                    if (result.type === 'SELECT_LABEL') {
+                        setSelectedBrush(result.labelId);
+                    }
+                }
+                console.log("System Action Result:", result);
+            }
+
+        } catch (error) {
+            console.error("AI Processing Error:", error);
+        } finally {
+            setIsProcessingAI(false);
+        }
     };
 
 
