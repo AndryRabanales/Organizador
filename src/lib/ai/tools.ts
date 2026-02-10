@@ -240,16 +240,52 @@ export const AI_TOOLS = {
  * Executes a raw AI action with the Store.
  * INCLUDES ROBUST NORMALIZATION to handle AI hallucinations (e.g. tool_name vs tool).
  */
+/**
+ * Executes a raw AI action with the Store.
+ * INCLUDES ROBUST NORMALIZATION to handle AI hallucinations (e.g. tool_name vs tool).
+ */
 export async function executeAIAction(rawAction: any) {
     // 1. Normalize Tool Name
     // The AI might return "tool", "tool_name", or "function"
-    const toolName = rawAction.tool || rawAction.tool_name || rawAction.function;
+    let toolName = rawAction.tool || rawAction.tool_name || rawAction.function;
 
     // 2. Normalize Parameters
     // The AI might return "parameters", "args", or "arguments"
-    const params = rawAction.parameters || rawAction.args || rawAction.arguments || {};
+    let params = rawAction.parameters || rawAction.args || rawAction.arguments || {};
 
     console.log(`[AI EXEC] Raw:`, rawAction);
+
+    // --- ALIAS MAPPING (Fix Hallucinations) ---
+    if (toolName === 'place_label') toolName = 'schedule_event';
+    if (toolName === 'add_label') toolName = 'create_label';
+    if (toolName === 'remove_label') toolName = 'delete_label';
+    if (toolName === 'config_calendar') toolName = 'set_config';
+    if (toolName === 'create_reminder') toolName = 'add_story';
+
+    // --- PARAMETER NORMALIZATION (Fix Types) ---
+    // Fix schedule_event params (AI often sends strings "07:00", "30m", and uses "label" instead of "labelName")
+    if (toolName === 'schedule_event') {
+        const p = { ...params };
+
+        // Map "label" -> "labelName"
+        if (p.label && !p.labelName) p.labelName = p.label;
+        if (p.start_time && !p.startHour) {
+            const parts = p.start_time.split(':');
+            if (parts.length === 2) {
+                p.startHour = parseInt(parts[0]);
+                p.startMinute = parseInt(parts[1]);
+            }
+        }
+        if (p.duration && typeof p.duration === 'string') {
+            // "30m" -> 30
+            p.durationMinutes = parseInt(p.duration.replace('m', ''));
+        }
+        // Fallback for duration
+        if (!p.durationMinutes && p.duration) p.durationMinutes = parseInt(p.duration);
+
+        params = p;
+    }
+
     console.log(`[AI EXEC] Normalized: ${toolName}`, params);
 
     switch (toolName) {
@@ -261,7 +297,7 @@ export async function executeAIAction(rawAction: any) {
         case 'schedule_event': return AI_TOOLS.schedule_event(params);
         case 'clear_blocks': return AI_TOOLS.clear_blocks(params);
         case 'set_block_note': return AI_TOOLS.set_block_note(params);
-        case 'add_story': return AI_TOOLS.add_story(params);
+        case 'add_story': return AI_TOOLS.add_story(params); // create_reminder aliased here
         case 'clear_calendar': return AI_TOOLS.clear_calendar();
         case 'clear_labels': return AI_TOOLS.clear_labels();
         case 'toggle_lock': return AI_TOOLS.toggle_lock(params);
