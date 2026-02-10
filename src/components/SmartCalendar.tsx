@@ -164,17 +164,20 @@ export function SmartCalendar() {
             console.log("AI says:", aiResponse.user_message);
             // In a future step, we'll surface this to the UI
 
-            // 2. Execute Action
-            if (aiResponse.tool_call) {
+            // 2. Execute Action(s)
+            if (aiResponse.tool_calls && Array.isArray(aiResponse.tool_calls)) {
                 const { executeAIAction } = await import('../lib/ai/tools');
-                const result = await executeAIAction(aiResponse.tool_call);
 
-                if (result && typeof result === 'object' && 'type' in result) {
-                    if (result.type === 'SELECT_LABEL') {
-                        setSelectedBrush(result.labelId);
+                for (const action of aiResponse.tool_calls) {
+                    const result = await executeAIAction(action);
+
+                    if (result && typeof result === 'object' && 'type' in result) {
+                        if (result.type === 'SELECT_LABEL') {
+                            setSelectedBrush(result.labelId);
+                        }
                     }
+                    console.log("System Action Result:", result);
                 }
-                console.log("System Action Result:", result);
             }
 
         } catch (error) {

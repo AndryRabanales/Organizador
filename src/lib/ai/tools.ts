@@ -36,8 +36,8 @@ export interface AIAction {
 export interface AIResponse {
     /** The message to be displayed directly to the user (e.g., "I've updated the label.") */
     user_message: string;
-    /** The structured command to be executed by the system. Null if no action is needed. */
-    tool_call: AIAction | null;
+    /** The structured commands to be executed by the system. Empty array if no action is needed. */
+    tool_calls: AIAction[];
 }
 
 export const AI_SYSTEM_PROMPT = `

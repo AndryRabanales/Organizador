@@ -18,7 +18,7 @@ export async function generateAIResponse(
     if (!import.meta.env.VITE_GEMINI_API_KEY) {
         return {
             user_message: "Error: No se encontró la API Key de Gemini. Por favor configura VITE_GEMINI_API_KEY en tu archivo .env.",
-            tool_call: null
+            tool_calls: []
         };
     }
 
@@ -69,7 +69,7 @@ export async function generateAIResponse(
         console.error("Gemini API Error:", error);
         return {
             user_message: "Lo siento, hubo un error conectando con la inteligencia artificial. Verifica tu conexión o intenta de nuevo.",
-            tool_call: null
+            tool_calls: []
         };
     }
 }

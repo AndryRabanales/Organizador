@@ -133,7 +133,7 @@ export const useCalendarStore = create<CalendarState>()(
                 set({ isLoading: true });
                 try {
                     console.log("Fetching from Supabase...");
-                    const { data: configData } = await supabase.from('calendar_config').select('*').single();
+                    const { data: configData } = await supabase.from('calendar_config').select('*').maybeSingle();
                     const { data: labelsData, error: lError } = await supabase.from('labels').select('*');
                     const { data: scheduleData } = await supabase.from('schedule_entries').select('*');
                     const { data: notesData } = await supabase.from('instance_notes').select('*');
