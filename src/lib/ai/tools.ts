@@ -282,10 +282,11 @@ export async function executeAIAction(rawAction: any) {
     if (toolName === 'remove_label') toolName = 'delete_label';
     if (toolName === 'config_calendar') toolName = 'set_config';
     if (toolName === 'create_reminder') toolName = 'add_story';
+    if (toolName === 'place_label_on_all_slots') toolName = 'fill_calendar';
 
     // --- PARAMETER NORMALIZATION (Fix Types) ---
     // Fix schedule_event params (AI often sends strings "07:00", "30m", and uses "label" instead of "labelName")
-    if (toolName === 'schedule_event') {
+    if (toolName === 'schedule_event' || toolName === 'fill_calendar') {
         const p = { ...params };
 
         // Map "label" -> "labelName"
