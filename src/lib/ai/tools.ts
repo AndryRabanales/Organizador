@@ -255,14 +255,6 @@ export const AI_TOOLS = {
 
 /**
  * Executes a raw AI action with the Store.
- * In a real LLM scenario, this would parse the JSON output from the model.
- */
-/**
- * Executes a raw AI action with the Store.
- * INCLUDES ROBUST NORMALIZATION to handle AI hallucinations (e.g. tool_name vs tool).
- */
-/**
- * Executes a raw AI action with the Store.
  * INCLUDES ROBUST NORMALIZATION to handle AI hallucinations (e.g. tool_name vs tool).
  */
 export async function executeAIAction(rawAction: any) {
@@ -285,27 +277,44 @@ export async function executeAIAction(rawAction: any) {
     if (toolName === 'place_label_on_all_slots') toolName = 'fill_calendar';
 
     // --- PARAMETER NORMALIZATION (Fix Types) ---
-    // Fix schedule_event params (AI often sends strings "07:00", "30m", and uses "label" instead of "labelName")
+
+    // 1. Common Time Parsing (start_time -> startHour/Minute, time -> hour/minute)
+    if (params.start_time && !params.startHour) {
+        const parts = params.start_time.split(':');
+        if (parts.length === 2) {
+            params.startHour = parseInt(parts[0]);
+            params.startMinute = parseInt(parts[1]);
+        }
+    }
+    if (params.time && !params.hour) {
+        const parts = params.time.split(':');
+        if (parts.length === 2) {
+            params.hour = parseInt(parts[0]);
+            params.minute = parseInt(parts[1]);
+        }
+    }
+
+    // 2. Duration Parsing ("30m" -> 30)
+    if (params.duration && typeof params.duration === 'string') {
+        params.durationMinutes = parseInt(params.duration.replace('m', ''));
+    }
+    if (!params.durationMinutes && params.duration) {
+        params.durationMinutes = parseInt(params.duration);
+    }
+
+    // 3. Tool-Specific Fixes
+    if (toolName === 'create_label') {
+        if (!params.color) params.color = '#3b82f6'; // Default Blue
+    }
+
+    if (toolName === 'update_label') {
+        if (params.name && !params.currentName) params.currentName = params.name;
+        if (params.color && !params.newColor) params.newColor = params.color;
+        if (params.notes && !params.newNotes) params.newNotes = params.notes;
+    }
+
     if (toolName === 'schedule_event' || toolName === 'fill_calendar') {
-        const p = { ...params };
-
-        // Map "label" -> "labelName"
-        if (p.label && !p.labelName) p.labelName = p.label;
-        if (p.start_time && !p.startHour) {
-            const parts = p.start_time.split(':');
-            if (parts.length === 2) {
-                p.startHour = parseInt(parts[0]);
-                p.startMinute = parseInt(parts[1]);
-            }
-        }
-        if (p.duration && typeof p.duration === 'string') {
-            // "30m" -> 30
-            p.durationMinutes = parseInt(p.duration.replace('m', ''));
-        }
-        // Fallback for duration
-        if (!p.durationMinutes && p.duration) p.durationMinutes = parseInt(p.duration);
-
-        params = p;
+        if (params.label && !params.labelName) params.labelName = params.label;
     }
 
     console.log(`[AI EXEC] Normalized: ${toolName}`, params);
