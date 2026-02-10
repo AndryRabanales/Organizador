@@ -13,42 +13,54 @@ interface WordEditorProps {
 
 export function WordEditor({ label, subLabel, value, onChange, color, placeholder, disabled }: WordEditorProps) {
     const editorRef = useRef<HTMLDivElement>(null);
+    const debounceTimer = useRef<NodeJS.Timeout | null>(null);
+    const lastEmittedValue = useRef(value);
 
-    // Sync external value to innerHTML only if different (prevents cursor jumping)
+    // Sync external value to innerHTML
     useEffect(() => {
-        if (editorRef.current && editorRef.current.innerHTML !== value) {
-            // Check if it's just a trivial difference (like extra <br>) or real
-            // For simplicity in this app, we trust the value if it's not the same.
-            // But we must be careful not to overwrite typing.
-            // Since this is a local app, `value` only changes if we type or switch cells.
-            // If we switch cells, the component might re-mount or props change.
-            // If we are typing, onChange updates `value`, which comes back here.
-            // To be safe, we only set it if the editor is NOT focused, OR if the data is completely different (different cell).
-            // Actually, comparing innerHTML is usually enough.
+        if (editorRef.current && value !== lastEmittedValue.current) {
             if (document.activeElement !== editorRef.current) {
                 editorRef.current.innerHTML = value;
-            } else if (value === '' && editorRef.current.innerHTML === '<br>') {
-                // Handle clear
-                editorRef.current.innerHTML = '';
+                lastEmittedValue.current = value;
             }
+        } else if (editorRef.current && value === '' && editorRef.current.innerHTML === '<br>') {
+            editorRef.current.innerHTML = '';
         }
     }, [value]);
+
+    const emitChange = (newValue: string) => {
+        if (debounceTimer.current) clearTimeout(debounceTimer.current);
+        lastEmittedValue.current = newValue;
+        onChange(newValue);
+    };
+
+    const handleInput = (e: React.FormEvent<HTMLDivElement>) => {
+        const val = e.currentTarget.innerHTML;
+
+        // Clear existing timer
+        if (debounceTimer.current) clearTimeout(debounceTimer.current);
+
+        // Set new timer
+        debounceTimer.current = setTimeout(() => {
+            emitChange(val);
+        }, 1000); // 1 second debounce
+    };
+
+    const handleBlur = (e: React.FocusEvent<HTMLDivElement>) => {
+        // Flush immediately on blur
+        if (debounceTimer.current) clearTimeout(debounceTimer.current);
+        const val = e.currentTarget.innerHTML;
+        emitChange(val);
+    };
 
     const execCmd = (command: string, value: string | undefined = undefined) => {
         if (disabled) return;
         document.execCommand(command, false, value);
         if (editorRef.current) {
-            onChange(editorRef.current.innerHTML);
-            // Ensure focus remains or returns to editor
-            if (document.activeElement !== editorRef.current) {
-                editorRef.current.focus();
-            }
+            const val = editorRef.current.innerHTML;
+            editorRef.current.focus();
+            emitChange(val); // Commands apply immediately
         }
-    };
-
-    const handleInput = (e: React.FormEvent<HTMLDivElement>) => {
-        const target = e.currentTarget;
-        onChange(target.innerHTML);
     };
 
     return (
@@ -89,7 +101,7 @@ export function WordEditor({ label, subLabel, value, onChange, color, placeholde
                     className="w-full h-full p-4 text-slate-700 bg-white focus:outline-none resize-none font-sans leading-relaxed custom-scrollbar text-sm [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5"
                     contentEditable={!disabled}
                     onInput={handleInput}
-                    onBlur={handleInput}
+                    onBlur={handleBlur}
                     suppressContentEditableWarning={true}
                     style={{ minHeight: '300px' }}
                 />
