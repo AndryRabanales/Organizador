@@ -1644,13 +1644,7 @@ export function SmartCalendar() {
                     </div>
                 )
             }
-            {/* AI Prompt Box */}
-            <AIPromptBox
-                isOpen={showAIPrompt}
-                onClose={() => setShowAIPrompt(false)}
-                onExecute={handleAIExecute}
-                isProcessing={isProcessingAI}
-            />
+
         </div >
     );
 }
