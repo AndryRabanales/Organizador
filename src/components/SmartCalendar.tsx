@@ -141,6 +141,18 @@ export function SmartCalendar() {
     const [activeBottomPanel, setActiveBottomPanel] = useState<'none' | 'config' | 'story'>('none');
 
     // --- AI AGENT STATE ---
+    // No dedicated component state needed for inline, but we need processing state
+    const [isProcessingAI, setIsProcessingAI] = useState(false);
+
+    const handleAIExecute = async (prompt: string) => {
+        setIsProcessingAI(true);
+        // Simulation for now
+        console.log("AI Prompt:", prompt);
+        await new Promise(r => setTimeout(r, 2000));
+        setIsProcessingAI(false);
+    };
+
+    // --- AI AGENT STATE ---
     const [showAIPrompt, setShowAIPrompt] = useState(false);
     const [isProcessingAI, setIsProcessingAI] = useState(false);
 
@@ -808,207 +820,233 @@ export function SmartCalendar() {
                             <span className="text-emerald-600">BIO</span> PLANIFICADOR
                         </h1>
                     </div>
-                    <div className="flex items-center gap-4">
-                        {/* AI Director Button (Only in View Mode) */}
-                        {appMode === 'view' && (
-                            <button
-                                onClick={() => setShowAIPrompt(true)}
-                                className="px-3 py-1.5 rounded-xl bg-violet-600/10 hover:bg-violet-600/20 text-violet-600 border border-violet-200/50 transition-all font-bold text-sm shadow-sm backdrop-blur flex items-center gap-2 hover:scale-105 active:scale-95 shimmer"
-                                title="Open AI Director"
-                            >
-                                <span className="text-lg">✨</span>
-                                <span className="hidden sm:inline">AI Director</span>
-                            </button>
-                        )}
-                        <div className="px-4 py-1.5 rounded-xl bg-white/80 border border-slate-200 font-mono text-emerald-600 font-bold text-sm backdrop-blur shadow-sm">
-                            {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                        </div>
-                        <button
-                            onClick={handleLogout}
-                            className="p-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 transition-all hover:scale-105 active:scale-95"
-                            title={t('logout')}
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-                                <path fillRule="evenodd" d="M16.5 3.75a1.5 1.5 0 0 1 1.5 1.5v13.5a1.5 1.5 0 0 1-1.5 1.5h-6a1.5 1.5 0 0 1-1.5-1.5V15a.75.75 0 0 0-1.5 0v3.75a3 3 0 0 0 3 3h6a3 3 0 0 0 3-3V5.25a3 3 0 0 0-3-3h-6a3 3 0 0 0-3 3V9A.75.75 0 1 0 9 9V5.25a1.5 1.5 0 0 1 1.5-1.5h6ZM5.78 8.47a.75.75 0 0 0-1.06 0l-3 3a.75.75 0 0 0 0 1.06l3 3a.75.75 0 0 0 1.06-1.06l-1.72-1.72H15a.75.75 0 0 0 0-1.5H4.06l1.72-1.72a.75.75 0 0 0 0-1.06Z" clipRule="evenodd" />
-                            </svg>
-                        </button>
-                    </div>
-                </div>
 
-                {/* Compact Toolbar for Config Mode (Visible ONLY when Unlocked) */}
-                <div className={clsx(
-                    "flex-none p-2 flex justify-between items-center z-30 bg-white border-b border-slate-200 shadow-sm transition-all duration-300",
-                    isLocked && "hidden" // HIDE in Viewing Mode
-                )}>
-                    <div className="font-bold text-xs text-slate-500 uppercase tracking-wider ml-2 hidden sm:block">
-                        {t('editingMode')}
-                    </div>
-                    <div className="flex items-center gap-2">
-                        {hasUnsavedChanges && (
-                            <>
-                                <Button size="sm" variant="ghost" onClick={discardChanges} className="h-7 text-xs text-red-500 hover:text-red-600 hover:bg-red-50">
-                                    {t('cancel')}
-                                </Button>
-                                <Button size="sm" onClick={saveChanges} className="h-7 text-xs shadow-md shadow-emerald-500/20 bg-emerald-600 hover:bg-emerald-700 text-white border-0">
-                                    {t('save')}
-                                </Button>
-                            </>
-                        )}
-                        <button
-                            onClick={cycleMode} // Consistent with cycle flow (Edit -> Focus)
-                            className="ml-2 p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
-                            title={t('settingsClose')}
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                        </button>
-                    </div>
-                </div>
-
-                {/* Grid */}
-                {/* Grid */}
-                <div ref={containerRef} className="flex-1 overflow-auto p-0 pt-0 custom-scrollbar overscroll-x-none">
-                    <div className={clsx(
-                        "glass-panel p-1 relative select-none transition-all duration-500 mb-16",
-                        appMode === 'focus' ? "w-[75%] max-w-[280px] mx-auto shadow-2xl ring-1 ring-slate-900/5 bg-white rounded-xl my-4" : "w-full max-w-none mx-auto"
-                    )}>
-                        {/* Real-time Arrow */}
-                        {isTimeVisible && (
-                            <div
-                                className="absolute w-full flex items-center z-30 pointer-events-none transition-all duration-1000 ease-linear"
-                                style={{ top: `calc(36px + (100% - 36px) * ${percentage / 100})` }}
-                            >
-                                <div className="w-16 pr-1 flex justify-end">
-                                    <div className="text-emerald-600 font-bold text-lg drop-shadow-[0_2px_4px_rgba(0,0,0,0.1)]">➤</div>
+                    {/* AI INPUT (CENTERED) */}
+                    {appMode === 'view' && (
+                        <div className="flex-1 max-w-2xl mx-4 relative group">
+                            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-violet-500 animate-pulse">✨</div>
+                            <input
+                                type="text"
+                                placeholder="Describe tu calendario ideal... (Ej: 'Horario 9-5 con gym a las 7am')"
+                                className="w-full bg-white/50 hover:bg-white/80 focus:bg-white border border-violet-100 hover:border-violet-300 focus:border-violet-500 rounded-xl py-2 pl-10 pr-10 text-sm text-slate-700 placeholder:text-slate-400 outline-none transition-all shadow-sm focus:shadow-md focus:ring-2 focus:ring-violet-500/20"
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                        handleAIExecute(e.currentTarget.value);
+                                        e.currentTarget.value = '';
+                                    }
+                                }}
+                                disabled={isProcessingAI}
+                            />
+                            {isProcessingAI && (
+                                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                                    <div className="w-4 h-4 border-2 border-violet-500 border-t-transparent rounded-full animate-spin"></div>
                                 </div>
-                                <div className="flex-1 h-0.5 bg-emerald-500/50 shadow-[0_0_10px_rgba(16,185,129,0.3)]"></div>
+                            )}
+                        </div>
+                    )}
 
-                                {/* FOCUS INFO CARD (Bubble) */}
-                                {appMode === 'focus' && showFocusInfo && currentBlockInfo && (
-                                    <div className="absolute left-16 right-2 bottom-6 pointer-events-auto animate-in fade-in slide-in-from-bottom-2 duration-500">
-                                        <div className="bg-white/95 backdrop-blur-xl border border-emerald-100 shadow-xl rounded-2xl p-3 relative ring-1 ring-emerald-500/20">
-                                            {/* Close Button */}
-                                            <button
-                                                onClick={() => setShowFocusInfo(false)}
-                                                className="absolute -top-2 -right-2 bg-white text-slate-400 hover:text-red-500 border border-slate-100 rounded-full p-1 shadow-sm transition-colors z-40"
-                                            >
-                                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3">
-                                                    <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
-                                                </svg>
-                                            </button>
-
-                                            {/* Content */}
-                                            <div className="flex items-start gap-3">
-                                                <div
-                                                    className="shrink-0 w-2 h-10 rounded-full"
-                                                    style={{ backgroundColor: currentBlockInfo.label.color }}
-                                                />
-                                                <div className="flex-1 min-w-0">
-                                                    <h3 className="text-sm font-bold text-slate-900 truncate" style={{ color: currentBlockInfo.label.color }}>
-                                                        {currentBlockInfo.label.name}
-                                                    </h3>
-                                                    {(currentBlockInfo.globalNote || currentBlockInfo.instanceNote) ? (
-                                                        <div className="text-xs text-slate-600 mt-1 space-y-1">
-                                                            {currentBlockInfo.instanceNote && (
-                                                                <div
-                                                                    className="bg-yellow-50 p-1.5 rounded border border-yellow-100 [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4 [&_li]:marker:text-slate-400"
-                                                                    dangerouslySetInnerHTML={{ __html: currentBlockInfo.instanceNote }}
-                                                                />
-                                                            )}
-                                                            {currentBlockInfo.globalNote && (
-                                                                <div
-                                                                    className="opacity-80 line-clamp-3 [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4"
-                                                                    dangerouslySetInnerHTML={{ __html: currentBlockInfo.globalNote }}
-                                                                />
-                                                            )}
-                                                        </div>
-                                                    ) : (
-                                                        <p className="text-[10px] text-slate-400 italic mt-0.5">No notes available.</p>
-                                                    )}
-                                                </div>
-                                            </div>
-
-                                            {/* Little Triangle Pointer */}
-                                            <div className="absolute -bottom-1.5 left-4 w-3 h-3 bg-white border-b border-r border-emerald-100 rotate-45 shadow-sm"></div>
-                                        </div>
-                                    </div>
-                                )}
+                    <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-4">
+                            {/* AI Director Button (Only in View Mode) */}
+                            {appMode === 'view' && (
+                                <button
+                                    onClick={() => setShowAIPrompt(true)}
+                                    className="px-3 py-1.5 rounded-xl bg-violet-600/10 hover:bg-violet-600/20 text-violet-600 border border-violet-200/50 transition-all font-bold text-sm shadow-sm backdrop-blur flex items-center gap-2 hover:scale-105 active:scale-95 shimmer"
+                                    title="Open AI Director"
+                                >
+                                    <span className="text-lg">✨</span>
+                                    <span className="hidden sm:inline">AI Director</span>
+                                </button>
+                            )}
+                            <div className="px-4 py-1.5 rounded-xl bg-white/80 border border-slate-200 font-mono text-emerald-600 font-bold text-sm backdrop-blur shadow-sm">
+                                {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                             </div>
-                        )}
+                            <button
+                                onClick={handleLogout}
+                                className="p-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 transition-all hover:scale-105 active:scale-95"
+                                title={t('logout')}
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+                                    <path fillRule="evenodd" d="M16.5 3.75a1.5 1.5 0 0 1 1.5 1.5v13.5a1.5 1.5 0 0 1-1.5 1.5h-6a1.5 1.5 0 0 1-1.5-1.5V15a.75.75 0 0 0-1.5 0v3.75a3 3 0 0 0 3 3h6a3 3 0 0 0 3-3V5.25a3 3 0 0 0-3-3h-6a3 3 0 0 0-3 3V9A.75.75 0 1 0 9 9V5.25a1.5 1.5 0 0 1 1.5-1.5h6ZM5.78 8.47a.75.75 0 0 0-1.06 0l-3 3a.75.75 0 0 0 0 1.06l3 3a.75.75 0 0 0 1.06-1.06l-1.72-1.72H15a.75.75 0 0 0 0-1.5H4.06l1.72-1.72a.75.75 0 0 0 0-1.06Z" clipRule="evenodd" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
 
-                        <div className="overflow-x-auto relative z-10 overscroll-x-none">
-                            <table className="w-full text-sm border-collapse">
-                                <thead>
-                                    <tr>
-                                        <th className="py-2 px-0 text-center w-10 text-slate-500 font-mono text-[9px] bg-white/90 backdrop-blur border-b border-slate-200">{t('time')}</th>
-                                        {DAYS.map((day, index) => {
-                                            // Focus Mode: Show ONLY current day
-                                            if (appMode === 'focus' && index !== currentDayIndex) return null;
+                    {/* Compact Toolbar for Config Mode (Visible ONLY when Unlocked) */}
+                    <div className={clsx(
+                        "flex-none p-2 flex justify-between items-center z-30 bg-white border-b border-slate-200 shadow-sm transition-all duration-300",
+                        isLocked && "hidden" // HIDE in Viewing Mode
+                    )}>
+                        <div className="font-bold text-xs text-slate-500 uppercase tracking-wider ml-2 hidden sm:block">
+                            {t('editingMode')}
+                        </div>
+                        <div className="flex items-center gap-2">
+                            {hasUnsavedChanges && (
+                                <>
+                                    <Button size="sm" variant="ghost" onClick={discardChanges} className="h-7 text-xs text-red-500 hover:text-red-600 hover:bg-red-50">
+                                        {t('cancel')}
+                                    </Button>
+                                    <Button size="sm" onClick={saveChanges} className="h-7 text-xs shadow-md shadow-emerald-500/20 bg-emerald-600 hover:bg-emerald-700 text-white border-0">
+                                        {t('save')}
+                                    </Button>
+                                </>
+                            )}
+                            <button
+                                onClick={cycleMode} // Consistent with cycle flow (Edit -> Focus)
+                                className="ml-2 p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
+                                title={t('settingsClose')}
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
 
-                                            return (
-                                                <th key={day} className={clsx(
-                                                    "py-1 px-1 text-center font-normal text-sm tracking-tighter border-b backdrop-blur transition-colors",
-                                                    appMode === 'focus' && "text-lg font-bold", // Larger text in Focus Mode
-                                                    index === appDay
-                                                        ? "text-emerald-700 bg-emerald-50 border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.1)]"
-                                                        : "text-slate-600 border-slate-200 bg-white/90"
-                                                )}>{day}</th>
-                                            );
-                                        })}
-                                    </tr>
-                                </thead>
-                                <tbody ref={tbodyRef}>
-                                    {slots.map((slot, rowIndex) => (
-                                        <tr key={rowIndex} className="border-b border-slate-200 hover:bg-slate-100 transition-colors h-8">
-                                            <td className="py-2 px-0 text-center text-slate-500 font-mono text-[9px] border-r border-slate-200 relative group/time">
-                                                {slot.label}
-                                            </td>
-                                            {DAYS.map((_, colIndex) => {
+                    {/* Grid */}
+                    {/* Grid */}
+                    <div ref={containerRef} className="flex-1 overflow-auto p-0 pt-0 custom-scrollbar overscroll-x-none">
+                        <div className={clsx(
+                            "glass-panel p-1 relative select-none transition-all duration-500 mb-16",
+                            appMode === 'focus' ? "w-[75%] max-w-[280px] mx-auto shadow-2xl ring-1 ring-slate-900/5 bg-white rounded-xl my-4" : "w-full max-w-none mx-auto"
+                        )}>
+                            {/* Real-time Arrow */}
+                            {isTimeVisible && (
+                                <div
+                                    className="absolute w-full flex items-center z-30 pointer-events-none transition-all duration-1000 ease-linear"
+                                    style={{ top: `calc(36px + (100% - 36px) * ${percentage / 100})` }}
+                                >
+                                    <div className="w-16 pr-1 flex justify-end">
+                                        <div className="text-emerald-600 font-bold text-lg drop-shadow-[0_2px_4px_rgba(0,0,0,0.1)]">➤</div>
+                                    </div>
+                                    <div className="flex-1 h-0.5 bg-emerald-500/50 shadow-[0_0_10px_rgba(16,185,129,0.3)]"></div>
+
+                                    {/* FOCUS INFO CARD (Bubble) */}
+                                    {appMode === 'focus' && showFocusInfo && currentBlockInfo && (
+                                        <div className="absolute left-16 right-2 bottom-6 pointer-events-auto animate-in fade-in slide-in-from-bottom-2 duration-500">
+                                            <div className="bg-white/95 backdrop-blur-xl border border-emerald-100 shadow-xl rounded-2xl p-3 relative ring-1 ring-emerald-500/20">
+                                                {/* Close Button */}
+                                                <button
+                                                    onClick={() => setShowFocusInfo(false)}
+                                                    className="absolute -top-2 -right-2 bg-white text-slate-400 hover:text-red-500 border border-slate-100 rounded-full p-1 shadow-sm transition-colors z-40"
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3">
+                                                        <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+                                                    </svg>
+                                                </button>
+
+                                                {/* Content */}
+                                                <div className="flex items-start gap-3">
+                                                    <div
+                                                        className="shrink-0 w-2 h-10 rounded-full"
+                                                        style={{ backgroundColor: currentBlockInfo.label.color }}
+                                                    />
+                                                    <div className="flex-1 min-w-0">
+                                                        <h3 className="text-sm font-bold text-slate-900 truncate" style={{ color: currentBlockInfo.label.color }}>
+                                                            {currentBlockInfo.label.name}
+                                                        </h3>
+                                                        {(currentBlockInfo.globalNote || currentBlockInfo.instanceNote) ? (
+                                                            <div className="text-xs text-slate-600 mt-1 space-y-1">
+                                                                {currentBlockInfo.instanceNote && (
+                                                                    <div
+                                                                        className="bg-yellow-50 p-1.5 rounded border border-yellow-100 [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4 [&_li]:marker:text-slate-400"
+                                                                        dangerouslySetInnerHTML={{ __html: currentBlockInfo.instanceNote }}
+                                                                    />
+                                                                )}
+                                                                {currentBlockInfo.globalNote && (
+                                                                    <div
+                                                                        className="opacity-80 line-clamp-3 [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4"
+                                                                        dangerouslySetInnerHTML={{ __html: currentBlockInfo.globalNote }}
+                                                                    />
+                                                                )}
+                                                            </div>
+                                                        ) : (
+                                                            <p className="text-[10px] text-slate-400 italic mt-0.5">No notes available.</p>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                {/* Little Triangle Pointer */}
+                                                <div className="absolute -bottom-1.5 left-4 w-3 h-3 bg-white border-b border-r border-emerald-100 rotate-45 shadow-sm"></div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            <div className="overflow-x-auto relative z-10 overscroll-x-none">
+                                <table className="w-full text-sm border-collapse">
+                                    <thead>
+                                        <tr>
+                                            <th className="py-2 px-0 text-center w-10 text-slate-500 font-mono text-[9px] bg-white/90 backdrop-blur border-b border-slate-200">{t('time')}</th>
+                                            {DAYS.map((day, index) => {
                                                 // Focus Mode: Show ONLY current day
-                                                if (appMode === 'focus' && colIndex !== currentDayIndex) return null;
-
-                                                const cellKey = `${colIndex}-${rowIndex}`;
-                                                // Coerce undefined to null for strict type compatibility with CalendarCellProps
-                                                const labelId = schedule[cellKey] || null;
-                                                // Find actual label obj for color (Committed)
-                                                // Memoize this if finding proves expensive, though array.find on small array is fast.
-                                                // However, we need referential stability for CalendarCell props if possible.
-                                                // Labels array is from store, so if store doesn't change, objects are same.
-                                                const labelObj = labels.find(l => l.id === labelId);
-
-                                                // Selection Preview Check
-                                                const isSelected = isCellSelected(colIndex, rowIndex);
+                                                if (appMode === 'focus' && index !== currentDayIndex) return null;
 
                                                 return (
-                                                    <CalendarCell
-                                                        key={colIndex}
-                                                        colIndex={colIndex}
-                                                        rowIndex={rowIndex}
-                                                        labelId={labelId}
-                                                        labelObj={labelObj}
-                                                        isSelected={isSelected}
-                                                        isLocked={isLocked}
-                                                        appDay={appDay}
-                                                        stories={stories}
-                                                        slotTotalMinutes={slot.totalMinutes}
-                                                        stepMinutes={config.stepMinutes}
-                                                        activeBrushObj={activeBrushObj}
-                                                        t={t}
-                                                        onMouseDown={handleMouseDown}
-                                                        onMouseEnter={handleMouseEnter}
-                                                        onNoteClick={handleNoteClick}
-                                                        onStoryClick={handleStoryClick}
-                                                    />
+                                                    <th key={day} className={clsx(
+                                                        "py-1 px-1 text-center font-normal text-sm tracking-tighter border-b backdrop-blur transition-colors",
+                                                        appMode === 'focus' && "text-lg font-bold", // Larger text in Focus Mode
+                                                        index === appDay
+                                                            ? "text-emerald-700 bg-emerald-50 border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.1)]"
+                                                            : "text-slate-600 border-slate-200 bg-white/90"
+                                                    )}>{day}</th>
                                                 );
                                             })}
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                                    </thead>
+                                    <tbody ref={tbodyRef}>
+                                        {slots.map((slot, rowIndex) => (
+                                            <tr key={rowIndex} className="border-b border-slate-200 hover:bg-slate-100 transition-colors h-8">
+                                                <td className="py-2 px-0 text-center text-slate-500 font-mono text-[9px] border-r border-slate-200 relative group/time">
+                                                    {slot.label}
+                                                </td>
+                                                {DAYS.map((_, colIndex) => {
+                                                    // Focus Mode: Show ONLY current day
+                                                    if (appMode === 'focus' && colIndex !== currentDayIndex) return null;
+
+                                                    const cellKey = `${colIndex}-${rowIndex}`;
+                                                    // Coerce undefined to null for strict type compatibility with CalendarCellProps
+                                                    const labelId = schedule[cellKey] || null;
+                                                    // Find actual label obj for color (Committed)
+                                                    // Memoize this if finding proves expensive, though array.find on small array is fast.
+                                                    // However, we need referential stability for CalendarCell props if possible.
+                                                    // Labels array is from store, so if store doesn't change, objects are same.
+                                                    const labelObj = labels.find(l => l.id === labelId);
+
+                                                    // Selection Preview Check
+                                                    const isSelected = isCellSelected(colIndex, rowIndex);
+
+                                                    return (
+                                                        <CalendarCell
+                                                            key={colIndex}
+                                                            colIndex={colIndex}
+                                                            rowIndex={rowIndex}
+                                                            labelId={labelId}
+                                                            labelObj={labelObj}
+                                                            isSelected={isSelected}
+                                                            isLocked={isLocked}
+                                                            appDay={appDay}
+                                                            stories={stories}
+                                                            slotTotalMinutes={slot.totalMinutes}
+                                                            stepMinutes={config.stepMinutes}
+                                                            activeBrushObj={activeBrushObj}
+                                                            t={t}
+                                                            onMouseDown={handleMouseDown}
+                                                            onMouseEnter={handleMouseEnter}
+                                                            onNoteClick={handleNoteClick}
+                                                            onStoryClick={handleStoryClick}
+                                                        />
+                                                    );
+                                                })}
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
-                </div>
             </main>
 
             {/* --- BOTTOM PANEL: CONFIG & STORIES --- */}
