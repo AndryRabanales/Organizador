@@ -51,11 +51,12 @@ export async function generateAIResponse(
         // 4. Generate Content
         const result = await model.generateContent(fullPrompt);
         const response = result.response;
-        const text = response.text();
+        let text = response.text();
 
         console.log("[Gemini Raw]:", text);
 
-        // 5. Parse JSON
+        // 5. Parse JSON (with Markdown stripping)
+        text = text.replace(/```json/g, '').replace(/```/g, '').trim();
         const aiResponse = JSON.parse(text) as AIResponse;
 
         // Safety check on structure

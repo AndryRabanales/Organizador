@@ -41,9 +41,27 @@ export interface AIResponse {
 }
 
 export const AI_SYSTEM_PROMPT = `
-You are the AI Assistant for the Smart Calendar. 
-You have FULL PERMISSION to configure the calendar and manage the user's schedule.
-Your goal is to be a helpful guide, executing commands precisely or asking for clarification if vague.
+You are the AI Assistant for the Smart Calendar. YOU HAVE FULL ADMINISTRATIVE PERMISSIONS.
+Your goal is to interpret the user's natural language and map it to the correct system tools.
+
+*** CRITICAL RULES (FORMAT) ***
+1. YOU MUST RETURN ONLY JSON.
+2. DO NOT return Markdown, Python code, or explanations outside the JSON.
+3. The JSON structure MUST be:
+   {
+      "user_message": "Friendly response to the user",
+      "tool_calls": [
+          { "tool": "tool_name", "parameters": { ... } }
+      ]
+   }
+4. You can return MULTIPLE actions in the "tool_calls" array.
+
+*** CRITICAL RULES (INTERPRETATION) ***
+1. BE FLEXIBLE: Understand the user's intent even if phrased colloquially.
+   - "Delete everything" -> clear_calendar
+   - "Deep work Tuesday morning" -> schedule_event (infer reasonable time)
+2. DO NOT BE PEDANTIC: If parameters are missing, infer the most logical defaults (e.g., standard duration 60m, red color for important things).
+3. ONLY ask for clarification if the request is completely impossible to guess.
 
 CAPABILITIES:
 1. LABELS: Create, color, select, and delete labels. Update global notes.
@@ -51,13 +69,6 @@ CAPABILITIES:
 3. CONFIGURATION: Resize calendar (start/end hour), change steps (5/15/30/60 min), set range.
 4. STORIES/REMINDERS: Create reminders with specific day/time/title/description.
 5. MAINTENANCE: Clear the entire calendar if requested.
-
-RULES:
-- RESPONSE FORMAT: Dual JSON (user_message + tool_call).
-- PERMISSIONS: you have FULL permissions to overwrite, delete, and reconfigure.
-- UNKNOWN REQUESTS: If vague, ask for clarification.
-- LIMITATIONS: If impossible, explain why.
-- GUIDE: Be a helpful guide.
 `;
 
 // Helper to get the store state safely
@@ -211,22 +222,36 @@ export const AI_TOOLS = {
  * Executes a raw AI action with the Store.
  * In a real LLM scenario, this would parse the JSON output from the model.
  */
-export async function executeAIAction(action: AIAction) {
-    console.log(`[AI EXEC] Tool: ${action.tool}`, action.parameters);
+/**
+ * Executes a raw AI action with the Store.
+ * INCLUDES ROBUST NORMALIZATION to handle AI hallucinations (e.g. tool_name vs tool).
+ */
+export async function executeAIAction(rawAction: any) {
+    // 1. Normalize Tool Name
+    // The AI might return "tool", "tool_name", or "function"
+    const toolName = rawAction.tool || rawAction.tool_name || rawAction.function;
 
-    switch (action.tool) {
-        case 'create_label': return AI_TOOLS.create_label(action.parameters);
-        case 'update_label': return AI_TOOLS.update_label(action.parameters);
-        case 'delete_label': return AI_TOOLS.delete_label(action.parameters);
-        case 'select_label': return AI_TOOLS.select_label(action.parameters);
-        case 'set_config': return AI_TOOLS.set_config(action.parameters);
-        case 'schedule_event': return AI_TOOLS.schedule_event(action.parameters);
-        case 'clear_blocks': return AI_TOOLS.clear_blocks(action.parameters);
-        case 'set_block_note': return AI_TOOLS.set_block_note(action.parameters);
-        case 'add_story': return AI_TOOLS.add_story(action.parameters);
+    // 2. Normalize Parameters
+    // The AI might return "parameters", "args", or "arguments"
+    const params = rawAction.parameters || rawAction.args || rawAction.arguments || {};
+
+    console.log(`[AI EXEC] Raw:`, rawAction);
+    console.log(`[AI EXEC] Normalized: ${toolName}`, params);
+
+    switch (toolName) {
+        case 'create_label': return AI_TOOLS.create_label(params);
+        case 'update_label': return AI_TOOLS.update_label(params);
+        case 'delete_label': return AI_TOOLS.delete_label(params);
+        case 'select_label': return AI_TOOLS.select_label(params);
+        case 'set_config': return AI_TOOLS.set_config(params);
+        case 'schedule_event': return AI_TOOLS.schedule_event(params);
+        case 'clear_blocks': return AI_TOOLS.clear_blocks(params);
+        case 'set_block_note': return AI_TOOLS.set_block_note(params);
+        case 'add_story': return AI_TOOLS.add_story(params);
         case 'clear_calendar': return AI_TOOLS.clear_calendar();
-        case 'toggle_lock': return AI_TOOLS.toggle_lock(action.parameters);
+        case 'toggle_lock': return AI_TOOLS.toggle_lock(params);
         default:
-            return "Unknown tool";
+            console.warn(`[AI EXEC] Unknown tool: ${toolName}`);
+            return `Error: Unknown tool "${toolName}".`;
     }
 }
