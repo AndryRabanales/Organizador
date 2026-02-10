@@ -9,8 +9,9 @@ import { useCalendarStore } from '../../store/calendarStore';
  * Capabilities:
  * - Label Management (Create, Edit, Delete, Select)
  * - Calendar Configuration (Size, Steps, Range)
- * - Scheduling (Block selection, Note editing, Event placement)
+ * - Scheduling (Block selection, Note editing, Event placement, Clearing specific blocks)
  * - Reminders/Stories (Create, Edit, Delete)
+ * - Notes (Global Label Notes, specific Block Notes)
  * - Safety (Clear Calendar, Warnings)
  */
 
@@ -21,7 +22,8 @@ export type ToolName =
     | 'delete_label'
     | 'set_config'
     | 'schedule_event'
-    | 'select_blocks'
+    | 'clear_blocks'
+    | 'set_block_note'
     | 'add_story'
     | 'clear_calendar'
     | 'toggle_lock';
@@ -76,9 +78,13 @@ export const AI_TOOLS = {
         return `Created label "${name}" with color ${color}`;
     },
 
-    update_label: async ({ currentName, newName, newColor }: { currentName: string, newName?: string, newColor?: string }) => {
+    update_label: async ({ currentName, newName, newColor, newNotes }: { currentName: string, newName?: string, newColor?: string, newNotes?: string }) => {
         const label = getStore().labels.find(l => l.name.toLowerCase() === currentName.toLowerCase());
         if (!label) return `Error: Label "${currentName}" not found.`;
+
+        if (newNotes !== undefined) {
+            getStore().updateLabelNotes(label.id, newNotes);
+        }
 
         getStore().updateLabel(label.id, {
             name: newName,
@@ -156,6 +162,38 @@ export const AI_TOOLS = {
         return `Scheduled "${labelName}" on day ${dayIndex} at ${startHour}:${startMinute}.`;
     },
 
+    clear_blocks: async ({ dayIndex, startHour, startMinute, durationMinutes }: { dayIndex: number, startHour: number, startMinute: number, durationMinutes: number }) => {
+        const store = getStore();
+        const step = store.config.stepMinutes;
+        const slotsNeeded = Math.ceil(durationMinutes / step);
+        const startTotalMinutes = startHour * 60 + startMinute;
+        const configStartMinutes = store.config.startHour * 60;
+
+        let startSlot = Math.floor((startTotalMinutes - configStartMinutes) / step);
+        if (startSlot < 0) return `Error: Time is before calendar start.`;
+
+        const cells = [];
+        for (let i = 0; i < slotsNeeded; i++) {
+            // 0-based index check? The store handles it mostly, but let's be safe
+            cells.push({ day: dayIndex, slot: startSlot + i });
+        }
+
+        store.setCellsBatch(cells, null); // Pass null to clear
+        return `Cleared blocks on day ${dayIndex} from ${startHour}:${startMinute}.`;
+    },
+
+    set_block_note: async ({ dayIndex, hour, minute, note }: { dayIndex: number, hour: number, minute: number, note: string }) => {
+        const store = getStore();
+        const step = store.config.stepMinutes;
+        const startTotalMinutes = hour * 60 + minute;
+        const configStartMinutes = store.config.startHour * 60;
+        const startSlot = Math.floor((startTotalMinutes - configStartMinutes) / step);
+
+        const key = `${dayIndex}-${startSlot}`;
+        store.updateInstanceNote(key, note);
+        return `Updated note for block at ${dayIndex}, ${hour}:${minute}`;
+    },
+
     // 4. Stories / Reminders
     add_story: async ({ dayIndex, hour, minute, title, content }: { dayIndex: number, hour: number, minute: number, title: string, content: string }) => {
         getStore().addStory({
@@ -189,6 +227,8 @@ export async function executeAIAction(action: AIAction) {
         case 'select_label': return AI_TOOLS.select_label(action.parameters);
         case 'set_config': return AI_TOOLS.set_config(action.parameters);
         case 'schedule_event': return AI_TOOLS.schedule_event(action.parameters);
+        case 'clear_blocks': return AI_TOOLS.clear_blocks(action.parameters);
+        case 'set_block_note': return AI_TOOLS.set_block_note(action.parameters);
         case 'add_story': return AI_TOOLS.add_story(action.parameters);
         case 'clear_calendar': return AI_TOOLS.clear_calendar();
         case 'toggle_lock': return AI_TOOLS.toggle_lock(action.parameters);
