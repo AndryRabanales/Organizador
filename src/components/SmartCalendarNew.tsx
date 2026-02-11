@@ -1,5 +1,5 @@
 import { useCalendarStore, DEFAULT_LABELS } from '../store/calendarStore';
-import { Button } from './Button';
+import { generateAIResponse } from '../lib/ai/groq';
 import clsx from 'clsx';
 import { useState, useEffect, useRef, useCallback } from 'react';
 
