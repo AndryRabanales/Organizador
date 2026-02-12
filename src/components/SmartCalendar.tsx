@@ -145,7 +145,7 @@ export function SmartCalendar() {
 
         const timeoutId = setTimeout(() => {
             console.log("Auto-saving changes...");
-            saveChanges();
+            saveChanges(true); // Silent save
         }, 2000); // 2 second debounce
 
         return () => clearTimeout(timeoutId);
@@ -912,7 +912,7 @@ export function SmartCalendar() {
                                 <Button size="sm" variant="ghost" onClick={discardChanges} className="h-7 text-xs text-red-500 hover:text-red-600 hover:bg-red-50">
                                     {t('cancel')}
                                 </Button>
-                                <Button size="sm" onClick={saveChanges} className="h-7 text-xs shadow-md shadow-emerald-500/20 bg-emerald-600 hover:bg-emerald-700 text-white border-0">
+                                <Button size="sm" onClick={() => saveChanges(false)} className="h-7 text-xs shadow-md shadow-emerald-500/20 bg-emerald-600 hover:bg-emerald-700 text-white border-0">
                                     {t('save')}
                                 </Button>
                             </>

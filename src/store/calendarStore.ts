@@ -84,7 +84,7 @@ interface CalendarState {
 
     // Async Actions
     fetchData: () => Promise<void>;
-    saveChanges: () => Promise<void>;
+    saveChanges: (silent?: boolean) => Promise<void>;
     discardChanges: () => void;
 
     addLabel: (name: string, color: string) => void;
@@ -228,11 +228,11 @@ export const useCalendarStore = create<CalendarState>()(
                 }
             },
 
-            saveChanges: async () => {
+            saveChanges: async (silent = false) => {
                 const { pendingOps } = get();
                 if (pendingOps.length === 0) return;
 
-                set({ isLoading: true });
+                if (!silent) set({ isLoading: true });
                 try {
                     // Execute all pending operations sequentially
                     for (const op of pendingOps) {
@@ -245,7 +245,7 @@ export const useCalendarStore = create<CalendarState>()(
                     });
                 } catch (error) {
                     console.error("Error saving changes:", error);
-                    alert("Error saving changes. See console.");
+                    if (!silent) alert("Error saving changes. See console.");
                     set({ isLoading: false });
                 }
             },
