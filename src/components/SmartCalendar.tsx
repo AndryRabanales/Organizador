@@ -139,6 +139,18 @@ export function SmartCalendar() {
     const [confirmModal, setConfirmModal] = useState<{ message: string, onConfirm: () => void, onCancel?: () => void } | null>(null);
     const [activeBottomPanel, setActiveBottomPanel] = useState<'none' | 'config' | 'story'>('none');
 
+    // --- AUTO SAVE ---
+    useEffect(() => {
+        if (!hasUnsavedChanges) return;
+
+        const timeoutId = setTimeout(() => {
+            console.log("Auto-saving changes...");
+            saveChanges();
+        }, 2000); // 2 second debounce
+
+        return () => clearTimeout(timeoutId);
+    }, [hasUnsavedChanges, saveChanges]);
+
     // --- AI AGENT STATE ---
     // No dedicated component state needed for inline, but we need processing state
     const [isProcessingAI, setIsProcessingAI] = useState(false);
