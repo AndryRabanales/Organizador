@@ -1180,6 +1180,18 @@ export function SmartCalendar() {
                                         <option value="60">60m</option>
                                     </select>
                                 </div>
+
+                                <button
+                                    onClick={() => {
+                                        saveChanges();
+                                        // Optional: Add visual feedback here if store doesn't handle alert
+                                    }}
+                                    className="ml-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-2 py-1 rounded transition-colors shadow-sm active:scale-95"
+                                    title="Save to Database"
+                                >
+                                    Save
+                                </button>
+
                                 <button
                                     onClick={() => setActiveBottomPanel('none')}
                                     className="ml-2 text-slate-400 hover:text-slate-600 transition-colors"
