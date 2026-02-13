@@ -88,6 +88,25 @@ export function SmartCalendar() {
         };
     }, [autoScrollSpeed]);
 
+    // Header Height Measurement for Arrow Positioning
+    const headerRef = useRef<HTMLTableSectionElement>(null);
+    const [headerHeight, setHeaderHeight] = useState(36); // Default fallback
+
+    useEffect(() => {
+        const updateHeaderHeight = () => {
+            if (headerRef.current) {
+                setHeaderHeight(headerRef.current.offsetHeight);
+            }
+        };
+
+        // Measure initially
+        updateHeaderHeight();
+
+        // Measure on resize
+        window.addEventListener('resize', updateHeaderHeight);
+        return () => window.removeEventListener('resize', updateHeaderHeight);
+    }, []);
+
 
     // Drag Logic - useCallback to stabilize references
     const handleMouseDown = useCallback((col: number, row: number) => {
@@ -545,7 +564,7 @@ export function SmartCalendar() {
                         {isTimeVisible && (
                             <div
                                 className="absolute w-full flex items-center z-20 pointer-events-none transition-all duration-1000 ease-linear"
-                                style={{ top: `calc(36px + (100% - 36px) * ${percentage / 100})` }}
+                                style={{ top: `calc(${headerHeight}px + (100% - ${headerHeight}px) * ${percentage / 100})` }}
                             >
                                 <div className="w-20 pr-2 flex justify-end">
                                     <div className="text-white/30 font-bold text-xl drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">➤</div>
@@ -556,7 +575,7 @@ export function SmartCalendar() {
 
                         <div className="overflow-x-auto relative z-10">
                             <table ref={tableRef} className="w-full text-sm border-collapse">
-                                <thead>
+                                <thead ref={headerRef}>
                                     <tr>
                                         <th className="p-2 text-left w-20 text-slate-500 font-mono text-xs bg-slate-900/50 backdrop-blur">TIME</th>
                                         {DAYS.map(day => (
