@@ -578,7 +578,7 @@ export function SmartCalendar() {
                         {/* Real-time Arrow */}
                         {isTimeVisible && (
                             <div
-                                className="absolute w-full flex items-center z-20 pointer-events-none transition-all duration-1000 ease-linear"
+                                className="absolute w-full flex items-center z-20 pointer-events-none transition-all duration-1000 ease-linear -translate-y-1/2"
                                 style={{ top: `${arrowMetrics.topOffset + arrowMetrics.height * (percentage / 100)}px` }}
                             >
                                 <div className="w-20 pr-2 flex justify-end">
