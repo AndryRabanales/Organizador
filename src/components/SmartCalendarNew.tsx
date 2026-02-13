@@ -62,7 +62,6 @@ export function SmartCalendar() {
 
     // Auto-scroll ref
     const scrollContainerRef = useRef<HTMLDivElement>(null);
-    const tableRef = useRef<HTMLTableElement>(null);
     const [autoScrollSpeed, setAutoScrollSpeed] = useState<number>(0);
 
     // Auto-scroll logic
@@ -88,24 +87,40 @@ export function SmartCalendar() {
         };
     }, [autoScrollSpeed]);
 
-    // Header Height Measurement for Arrow Positioning
-    const headerRef = useRef<HTMLTableSectionElement>(null);
-    const [headerHeight, setHeaderHeight] = useState(36); // Default fallback
+    // Robust Arrow Positioning Metrics
+    const panelRef = useRef<HTMLDivElement>(null); // To establish coordinate system
+    const bodyRef = useRef<HTMLTableSectionElement>(null); // To measure actual play area
+    const [arrowMetrics, setArrowMetrics] = useState({ topOffset: 36, height: 500 });
 
     useEffect(() => {
-        const updateHeaderHeight = () => {
-            if (headerRef.current) {
-                setHeaderHeight(headerRef.current.offsetHeight);
+        const updateMetrics = () => {
+            if (panelRef.current && bodyRef.current) {
+                const panelRect = panelRef.current.getBoundingClientRect();
+                const bodyRect = bodyRef.current.getBoundingClientRect();
+
+                // Calculate where tbody starts relative to the panel (ignoring padding/margins/headers)
+                const topOffset = bodyRect.top - panelRect.top;
+                const height = bodyRect.height;
+
+                setArrowMetrics({ topOffset, height });
             }
         };
 
         // Measure initially
-        updateHeaderHeight();
+        updateMetrics();
 
         // Measure on resize
-        window.addEventListener('resize', updateHeaderHeight);
-        return () => window.removeEventListener('resize', updateHeaderHeight);
-    }, []);
+        window.addEventListener('resize', updateMetrics);
+
+        // Also measure when config changes (as table height changes)
+        // We use a small timeout to ensure DOM has updated
+        const timeoutId = setTimeout(updateMetrics, 100);
+
+        return () => {
+            window.removeEventListener('resize', updateMetrics);
+            clearTimeout(timeoutId);
+        };
+    }, [config.startHour, config.endHour, config.stepMinutes]);
 
 
     // Drag Logic - useCallback to stabilize references
@@ -271,8 +286,8 @@ export function SmartCalendar() {
             let clampedX = touch.clientX;
             let clampedY = touch.clientY;
 
-            if (tableRef.current) {
-                const tableBounds = tableRef.current.getBoundingClientRect();
+            if (bodyRef.current) {
+                const tableBounds = bodyRef.current.getBoundingClientRect();
                 // Clamp to be strictly within table (with 1px margin to ensure we hit a cell)
                 clampedX = Math.max(tableBounds.left + 1, Math.min(touch.clientX, tableBounds.right - 1));
                 clampedY = Math.max(tableBounds.top + 1, Math.min(touch.clientY, tableBounds.bottom - 1));
@@ -556,7 +571,7 @@ export function SmartCalendar() {
                     ref={scrollContainerRef}
                     className="flex-1 overflow-auto p-6 pt-0 custom-scrollbar"
                 >
-                    <div className={clsx("glass-panel p-1 relative select-none transition-all duration-500", !isLocked ? "ml-4" : "mx-auto max-w-6xl")}>
+                    <div ref={panelRef} className={clsx("glass-panel p-1 relative select-none transition-all duration-500", !isLocked ? "ml-4" : "mx-auto max-w-6xl")}>
                         {/* Lock Overlay on Grid (Only necessary if we want to block interaction, but isLocked handles logic) */}
                         {isLocked && <div className="absolute inset-0 z-50 bg-transparent" />}
 
@@ -564,7 +579,7 @@ export function SmartCalendar() {
                         {isTimeVisible && (
                             <div
                                 className="absolute w-full flex items-center z-20 pointer-events-none transition-all duration-1000 ease-linear"
-                                style={{ top: `calc(${headerHeight}px + (100% - ${headerHeight}px) * ${percentage / 100})` }}
+                                style={{ top: `${arrowMetrics.topOffset + arrowMetrics.height * (percentage / 100)}px` }}
                             >
                                 <div className="w-20 pr-2 flex justify-end">
                                     <div className="text-white/30 font-bold text-xl drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">➤</div>
@@ -574,8 +589,8 @@ export function SmartCalendar() {
                         )}
 
                         <div className="overflow-x-auto relative z-10">
-                            <table ref={tableRef} className="w-full text-sm border-collapse">
-                                <thead ref={headerRef}>
+                            <table className="w-full text-sm border-collapse">
+                                <thead>
                                     <tr>
                                         <th className="p-2 text-left w-20 text-slate-500 font-mono text-xs bg-slate-900/50 backdrop-blur">TIME</th>
                                         {DAYS.map(day => (
@@ -583,7 +598,7 @@ export function SmartCalendar() {
                                         ))}
                                     </tr>
                                 </thead>
-                                <tbody>
+                                <tbody ref={bodyRef}>
                                     {slots.map((slot, rowIndex) => (
                                         <tr key={rowIndex} className="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors h-8">
                                             <td className="p-2 text-slate-500 font-mono text-xs border-r border-slate-800 relative group/time">
