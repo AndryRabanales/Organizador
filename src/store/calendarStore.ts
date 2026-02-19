@@ -262,25 +262,100 @@ export const useCalendarStore = create<CalendarState>()(
                 fetchData();
             },
 
-            setConfig: async (newConfig) => {
-                set((state) => ({
-                    config: { ...state.config, ...newConfig },
-                    hasUnsavedChanges: true,
-                    pendingOps: [...state.pendingOps, async () => {
-                        const userId = (await supabase.auth.getUser()).data.user?.id;
-                        const fullConfig = get().config;
-                        if (userId) {
-                            await supabase.from('calendar_config').upsert({
-                                user_id: userId,
-                                start_hour: fullConfig.startHour,
-                                start_minute: fullConfig.startMinute,
-                                end_hour: fullConfig.endHour,
-                                end_minute: fullConfig.endMinute,
-                                step_minutes: fullConfig.stepMinutes
-                            }, { onConflict: 'user_id' });
+            setConfig: async (newConfigParams) => {
+                set((state) => {
+                    const oldConfig = state.config;
+                    const newConfig = { ...oldConfig, ...newConfigParams };
+
+                    // Recalculate Offsets
+                    const newSchedule: Record<string, string> = {};
+                    const newInstanceNotes: Record<string, string> = {};
+
+                    const oldStartMins = oldConfig.startHour * 60 + oldConfig.startMinute;
+                    const oldStep = oldConfig.stepMinutes;
+
+                    const newStartMins = newConfig.startHour * 60 + newConfig.startMinute;
+                    const newEndMins = newConfig.endHour * 60 + newConfig.endMinute;
+                    const newStep = newConfig.stepMinutes;
+
+                    // Migrate Schedule
+                    Object.keys(state.schedule).forEach(key => {
+                        const [dayStr, slotStr] = key.split('-');
+                        const dayIndex = parseInt(dayStr);
+                        const oldSlotIndex = parseInt(slotStr);
+
+                        const absoluteTimeMins = oldStartMins + (oldSlotIndex * oldStep);
+
+                        // Check if block falls within new bounds
+                        if (absoluteTimeMins >= newStartMins && absoluteTimeMins < newEndMins) {
+                            const newSlotIndex = Math.floor((absoluteTimeMins - newStartMins) / newStep);
+                            const newKey = `${dayIndex}-${newSlotIndex}`;
+                            newSchedule[newKey] = state.schedule[key];
+
+                            // Migrate associated note if it exists
+                            if (state.instanceNotes[key]) {
+                                newInstanceNotes[newKey] = state.instanceNotes[key];
+                            }
                         }
-                    }]
-                }));
+                    });
+
+                    // Any instance notes without a schedule block but within bounds could technically be migrated too,
+                    // but practically, notes are tied to blocks. The logic above handles notes tied to migrating blocks.
+
+                    return {
+                        config: newConfig,
+                        schedule: newSchedule,
+                        instanceNotes: newInstanceNotes,
+                        hasUnsavedChanges: true,
+                        pendingOps: [...state.pendingOps, async () => {
+                            const userId = (await supabase.auth.getUser()).data.user?.id;
+                            if (userId) {
+                                // 1. Save Config
+                                await supabase.from('calendar_config').upsert({
+                                    user_id: userId,
+                                    start_hour: newConfig.startHour,
+                                    start_minute: newConfig.startMinute,
+                                    end_hour: newConfig.endHour,
+                                    end_minute: newConfig.endMinute,
+                                    step_minutes: newConfig.stepMinutes
+                                }, { onConflict: 'user_id' });
+
+                                // 2. Perform Mass Cleanup and Mass Insert for Schedule & Notes
+                                // Delete all current schedule entries and notes
+                                await supabase.from('schedule_entries').delete().eq('user_id', userId);
+                                await supabase.from('instance_notes').delete().eq('user_id', userId);
+
+                                // Bulk Insert new Schedule
+                                const scheduleUpserts = Object.keys(newSchedule).map(key => {
+                                    const [dayIndex, slotIndex] = key.split('-');
+                                    return {
+                                        user_id: userId,
+                                        day_index: parseInt(dayIndex),
+                                        slot_index: parseInt(slotIndex),
+                                        label_id: newSchedule[key]
+                                    };
+                                });
+
+                                if (scheduleUpserts.length > 0) {
+                                    await supabase.from('schedule_entries').upsert(scheduleUpserts);
+                                }
+
+                                // Bulk Insert new Notes
+                                const noteUpserts = Object.keys(newInstanceNotes).map(key => {
+                                    return {
+                                        user_id: userId,
+                                        key: key,
+                                        content: newInstanceNotes[key]
+                                    };
+                                });
+
+                                if (noteUpserts.length > 0) {
+                                    await supabase.from('instance_notes').upsert(noteUpserts);
+                                }
+                            }
+                        }]
+                    };
+                });
             },
 
             setCell: async (dayIndex, slotIndex, labelId) => {
