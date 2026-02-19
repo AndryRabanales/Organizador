@@ -685,8 +685,8 @@ export function SmartCalendar() {
     }, []); // Empty dependency array = listeners bound ONCE
 
     const slots = [];
-    let currentMin = config.startHour * 60;
-    const endMin = config.endHour * 60;
+    let currentMin = config.startHour * 60 + config.startMinute;
+    const endMin = config.endHour * 60 + config.endMinute;
 
     while (currentMin < endMin) {
         const h = Math.floor(currentMin / 60);
@@ -696,8 +696,8 @@ export function SmartCalendar() {
         currentMin += config.stepMinutes;
     }
 
-    const startTotalMins = config.startHour * 60;
-    const endTotalMins = config.endHour * 60;
+    const startTotalMins = config.startHour * 60 + config.startMinute;
+    const endTotalMins = config.endHour * 60 + config.endMinute;
     const currentTotalMins = now.getHours() * 60 + now.getMinutes() + (now.getSeconds() / 60);
     const isTimeVisible = currentTotalMins >= startTotalMins && currentTotalMins <= endTotalMins;
     const range = endTotalMins - startTotalMins;
@@ -1159,10 +1159,19 @@ export function SmartCalendar() {
                                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M10.34 15.84c-.688-.06-1.386-.09-2.09-.09H7.5a4.5 4.5 0 1 1 0-9h.75c.704 0 1.402-.03 2.09-.09m0 9.18c.253.962.584 1.892.985 2.783.247.55.06 1.21-.463 1.511l-.657.38c-.551.318-1.26.117-1.527-.461a20.845 20.845 0 0 1-1.44-4.282m3.102.069a18.03 18.03 0 0 1-.59-4.59c0-1.586.205-3.124.59-4.59m0 0a20.87 20.87 0 0 0-1.439-4.283c-.266-.579.444-1.29 1.527.461l.657.38c.522.301.709.96.463 1.511a21.78 21.78 0 0 1-.985 2.783m2.406 5.231c.216.924.49 1.82.81 2.684.283.766.124 1.636-.453 2.115l-1.076.92c-.676.578-1.745.578-2.422 0l-1.076-.92c-.577-.479-.736-1.349-.453-2.115a20.24 20.24 0 0 1 .81-2.684m5.215-6.577c.577.266 1.289-.444.461-1.527l.38-.657c.301-.522.96-.709 1.511-.463a21.77 21.77 0 0 1 2.783.985m-6.649.525c.577.266 1.289-.444.461-1.527l.38-.657c.301-.522.96-.709 1.511-.463a21.77 21.77 0 0 1 2.783.985" /></svg>
                                     </div>
                                     <span className="text-[10px] font-bold text-slate-500 uppercase">Range</span>
-                                    <div className="flex items-center gap-1 bg-white border border-slate-200 rounded px-1">
-                                        <input type="number" min="0" max="23" className="w-5 bg-transparent text-center text-xs outline-none text-emerald-600" value={config.startHour} onChange={(e) => handleConfigChange('startHour', e.target.value)} />
-                                        <span className="text-slate-400 text-xs">-</span>
-                                        <input type="number" min="1" max="24" className="w-5 bg-transparent text-center text-xs outline-none text-emerald-600" value={config.endHour} onChange={(e) => handleConfigChange('endHour', e.target.value)} />
+                                    <div className="flex flex-col gap-1">
+                                        <div className="flex items-center gap-1 bg-white border border-slate-200 rounded px-1">
+                                            <span className="text-[9px] text-slate-400 font-bold uppercase w-8 text-right">Start</span>
+                                            <input type="number" min="0" max="23" className="w-5 bg-transparent text-center text-xs outline-none text-emerald-600" value={config.startHour} onChange={(e) => handleConfigChange('startHour', e.target.value)} />
+                                            <span className="text-slate-400 text-xs">:</span>
+                                            <input type="number" min="0" max="59" step="5" className="w-5 bg-transparent text-center text-xs outline-none text-emerald-600" value={config.startMinute} onChange={(e) => handleConfigChange('startMinute', e.target.value)} />
+                                        </div>
+                                        <div className="flex items-center gap-1 bg-white border border-slate-200 rounded px-1">
+                                            <span className="text-[9px] text-slate-400 font-bold uppercase w-8 text-right">End</span>
+                                            <input type="number" min="0" max="24" className="w-5 bg-transparent text-center text-xs outline-none text-emerald-600" value={config.endHour} onChange={(e) => handleConfigChange('endHour', e.target.value)} />
+                                            <span className="text-slate-400 text-xs">:</span>
+                                            <input type="number" min="0" max="59" step="5" className="w-5 bg-transparent text-center text-xs outline-none text-emerald-600" value={config.endMinute} onChange={(e) => handleConfigChange('endMinute', e.target.value)} />
+                                        </div>
                                     </div>
                                 </div>
                                 <div className="w-px h-4 bg-slate-200" />

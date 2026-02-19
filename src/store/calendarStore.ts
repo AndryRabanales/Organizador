@@ -4,7 +4,9 @@ import { supabase } from '../lib/supabase'; // Import supabase
 
 export interface CalendarConfig {
     startHour: number; // 0-23
+    startMinute: number; // 0-59
     endHour: number;   // 0-24 (24 means end of day)
+    endMinute: number; // 0-59
     stepMinutes: number; // e.g. 15, 20, 30, 60
 }
 
@@ -116,7 +118,9 @@ export const useCalendarStore = create<CalendarState>()(
         (set, get) => ({
             config: {
                 startHour: 5,
+                startMinute: 0,
                 endHour: 21,
+                endMinute: 0,
                 stepMinutes: 30,
             },
             schedule: {},
@@ -146,7 +150,9 @@ export const useCalendarStore = create<CalendarState>()(
                     if (configData) {
                         newConfig = {
                             startHour: configData.start_hour,
+                            startMinute: configData.start_minute || 0,
                             endHour: configData.end_hour,
+                            endMinute: configData.end_minute || 0,
                             stepMinutes: configData.step_minutes
                         };
                     }
@@ -267,7 +273,9 @@ export const useCalendarStore = create<CalendarState>()(
                             await supabase.from('calendar_config').upsert({
                                 user_id: userId,
                                 start_hour: fullConfig.startHour,
+                                start_minute: fullConfig.startMinute,
                                 end_hour: fullConfig.endHour,
+                                end_minute: fullConfig.endMinute,
                                 step_minutes: fullConfig.stepMinutes
                             }, { onConflict: 'user_id' });
                         }
