@@ -76,7 +76,7 @@ const CalendarCell = memo(({
                 return (
                     <div
                         key={`${block.start_minute}-${idx}`}
-                        className="absolute w-full border-l-2 pl-0.5 flex flex-col justify-start overflow-hidden transition-all duration-300 z-10"
+                        className="absolute w-full border-l-2 pl-0.5 flex flex-col justify-start overflow-hidden transition-all duration-300 z-10 pointer-events-none"
                         style={{
                             top: `${topPercent}%`,
                             height: `${heightPercent}%`,
@@ -95,7 +95,7 @@ const CalendarCell = memo(({
                             <button
                                 onClick={(e) => { e.stopPropagation(); onNoteClick(labelObj.id, `${colIndex}-${block.start_minute}`); }}
                                 onMouseDown={(e) => e.stopPropagation()}
-                                className="absolute top-0 right-0 p-0.5 m-0.5 rounded hover:bg-white/50 text-slate-600/70 hover:text-slate-900 transition-all z-20"
+                                className="absolute top-0 right-0 p-0.5 m-0.5 rounded hover:bg-white/50 text-slate-600/70 hover:text-slate-900 transition-all z-20 pointer-events-auto"
                                 title={t('notes')}
                             >
                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-2.5 h-2.5">
@@ -668,13 +668,14 @@ export function SmartCalendar() {
             }
         };
 
-        const handleTouchEnd = () => {
+        const handleTouchEnd = (e: TouchEvent) => {
             if (longPressTimer) {
                 window.clearTimeout(longPressTimer);
                 longPressTimer = null;
             }
 
             if (isTrackingSelection) {
+                if (e && e.cancelable) e.preventDefault();
                 setAutoScrollSpeed(0); // Stop Scroll
                 if (onMouseUpRef.current) onMouseUpRef.current();
                 isTrackingSelection = false;
