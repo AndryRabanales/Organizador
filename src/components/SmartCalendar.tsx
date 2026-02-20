@@ -11,8 +11,8 @@ import { useLanguage } from '../hooks/useLanguage';
 interface CalendarCellProps {
     colIndex: number;
     rowIndex: number;
-    labelId: string | null;
-    labelObj: any;
+    cellBlocks: any[];
+    labels: any[];
     isSelected: boolean;
     isLocked: boolean;
     appDay: number;
@@ -30,8 +30,8 @@ interface CalendarCellProps {
 const CalendarCell = memo(({
     colIndex,
     rowIndex,
-
-    labelObj,
+    cellBlocks,
+    labels,
     isSelected,
     isLocked,
     appDay,
@@ -63,32 +63,49 @@ const CalendarCell = memo(({
             onMouseEnter={() => onMouseEnter(colIndex, rowIndex)}
         >
             {/* Committed Layer */}
-            {labelObj && (
-                <div
-                    className="absolute inset-0 w-full h-full border-l-2 pl-0.5 flex flex-col justify-center overflow-hidden transition-all duration-300"
-                    style={{
-                        backgroundColor: `${labelObj.color}30`,
-                        borderColor: labelObj.color
-                    }}
-                >
-                    <span className="text-[10px] font-normal tracking-tight opacity-100 px-0.5 pr-3 leading-3 whitespace-normal break-words line-clamp-2 select-none" style={{ color: labelObj.color }}>
-                        {labelObj.name}
-                    </span>
+            {cellBlocks.map((block, idx) => {
+                const labelObj = labels.find(l => l.id === block.label_id);
+                if (!labelObj) return null;
 
-                    {!isLocked && (
-                        <button
-                            onClick={(e) => { e.stopPropagation(); onNoteClick(labelObj.id, `${colIndex}-${rowIndex}`); }}
-                            onMouseDown={(e) => e.stopPropagation()}
-                            className="absolute top-0 right-0 p-0.5 m-0.5 rounded hover:bg-white/50 text-slate-600/70 hover:text-slate-900 transition-all z-20"
-                            title={t('notes')}
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-2.5 h-2.5">
-                                <path d="m2.695 14.762-1.262 3.155a.5.5 0 0 0 .65.65l3.155-1.262a4 4 0 0 0 1.343-.886L17.5 5.501a2.121 2.121 0 0 0-3-3L3.58 13.419a4 4 0 0 0-.885 1.343Z" />
-                            </svg>
-                        </button>
-                    )}
-                </div>
-            )}
+                const startOffset = Math.max(0, block.start_minute - slotTotalMinutes);
+                const endOffset = Math.min(stepMinutes, (block.start_minute + block.duration_minutes) - slotTotalMinutes);
+
+                const topPercent = (startOffset / stepMinutes) * 100;
+                const heightPercent = ((endOffset - startOffset) / stepMinutes) * 100;
+
+                return (
+                    <div
+                        key={`${block.start_minute}-${idx}`}
+                        className="absolute w-full border-l-2 pl-0.5 flex flex-col justify-start overflow-hidden transition-all duration-300 z-10"
+                        style={{
+                            top: `${topPercent}%`,
+                            height: `${heightPercent}%`,
+                            backgroundColor: `${labelObj.color}30`,
+                            borderColor: labelObj.color,
+                            paddingTop: heightPercent > 20 ? '2px' : '0'
+                        }}
+                    >
+                        {heightPercent > 20 && (
+                            <span className="text-[10px] font-normal tracking-tight opacity-100 px-0.5 pr-3 leading-3 whitespace-normal break-words line-clamp-2 select-none" style={{ color: labelObj.color }}>
+                                {labelObj.name}
+                            </span>
+                        )}
+
+                        {!isLocked && heightPercent > 15 && (
+                            <button
+                                onClick={(e) => { e.stopPropagation(); onNoteClick(labelObj.id, `${colIndex}-${block.start_minute}`); }}
+                                onMouseDown={(e) => e.stopPropagation()}
+                                className="absolute top-0 right-0 p-0.5 m-0.5 rounded hover:bg-white/50 text-slate-600/70 hover:text-slate-900 transition-all z-20"
+                                title={t('notes')}
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-2.5 h-2.5">
+                                    <path d="m2.695 14.762-1.262 3.155a.5.5 0 0 0 .65.65l3.155-1.262a4 4 0 0 0 1.343-.886L17.5 5.501a2.121 2.121 0 0 0-3-3L3.58 13.419a4 4 0 0 0-.885 1.343Z" />
+                                </svg>
+                            </button>
+                        )}
+                    </div>
+                );
+            })}
 
             {/* Stories Layer */}
             {cellStories.map(story => (
@@ -117,11 +134,8 @@ const CalendarCell = memo(({
 }, (prev, next) => {
     return (
         prev.isSelected === next.isSelected &&
-        prev.labelId === next.labelId &&
-        prev.isLocked === next.isLocked &&
-        prev.appDay === next.appDay &&
-        prev.labelObj === next.labelObj && // Reference equality from store state
-        prev.activeBrushObj === next.activeBrushObj && // Reference equality
+        prev.cellBlocks === next.cellBlocks && // Reference equality
+        prev.labels === next.labels && // Reference equality
         prev.stories === next.stories // Reference equality
         // Handlers are assumed stable or appropriately updated
     );
@@ -130,7 +144,7 @@ const CalendarCell = memo(({
 
 export function SmartCalendar() {
     const { t, days: DAYS } = useLanguage();
-    const { config, schedule, labels, isLocked, instanceNotes, stories, setConfig, setCellsBatch, clearSchedule, addLabel, removeLabel, updateLabelNotes, updateInstanceNote, toggleLock, addTab, closeTab, restoreTab, deleteTabForever, updateCustomTab, reorderTabs, addStory, updateStory, removeStory, hasUnsavedChanges, saveChanges, discardChanges } = useCalendarStore();
+    const { config, rawBlocks, schedule, labels, isLocked, instanceNotes, stories, setConfig, setCellsBatch, clearSchedule, addLabel, removeLabel, updateLabelNotes, updateInstanceNote, toggleLock, addTab, closeTab, restoreTab, deleteTabForever, updateCustomTab, reorderTabs, addStory, updateStory, removeStory, hasUnsavedChanges, saveChanges, discardChanges } = useCalendarStore();
     const [selectedBrush, setSelectedBrush] = useState<string>(DEFAULT_LABELS[0].id);
     const [editingLabelId, setEditingLabelId] = useState<string | null>(null);
     const [editingCellKey, setEditingCellKey] = useState<string | null>(null);
@@ -1084,14 +1098,14 @@ export function SmartCalendar() {
                                                 // Focus Mode: Show ONLY current day
                                                 if (appMode === 'focus' && colIndex !== currentDayIndex) return null;
 
-                                                const cellKey = `${colIndex}-${rowIndex}`;
-                                                // Coerce undefined to null for strict type compatibility with CalendarCellProps
-                                                const labelId = schedule[cellKey] || null;
-                                                // Find actual label obj for color (Committed)
-                                                // Memoize this if finding proves expensive, though array.find on small array is fast.
-                                                // However, we need referential stability for CalendarCell props if possible.
-                                                // Labels array is from store, so if store doesn't change, objects are same.
-                                                const labelObj = labels.find(l => l.id === labelId);
+                                                const cellStartMins = slot.totalMinutes;
+                                                const cellEndMins = cellStartMins + config.stepMinutes;
+
+                                                const cellBlocks = rawBlocks.filter(b =>
+                                                    b.day_index === colIndex &&
+                                                    b.start_minute < cellEndMins &&
+                                                    (b.start_minute + b.duration_minutes) > cellStartMins
+                                                );
 
                                                 // Selection Preview Check
                                                 const isSelected = isCellSelected(colIndex, rowIndex);
@@ -1101,8 +1115,8 @@ export function SmartCalendar() {
                                                         key={colIndex}
                                                         colIndex={colIndex}
                                                         rowIndex={rowIndex}
-                                                        labelId={labelId}
-                                                        labelObj={labelObj}
+                                                        cellBlocks={cellBlocks}
+                                                        labels={labels}
                                                         isSelected={isSelected}
                                                         isLocked={isLocked}
                                                         appDay={appDay}
