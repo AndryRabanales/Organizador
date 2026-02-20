@@ -286,18 +286,27 @@ export const useCalendarStore = create<CalendarState>()(
                         const dayIndex = parseInt(dayStr);
                         const oldSlotIndex = parseInt(slotStr);
 
-                        const absoluteTimeMins = oldStartMins + (oldSlotIndex * oldStep);
+                        const startAbsoluteMins = oldStartMins + (oldSlotIndex * oldStep);
+                        const endAbsoluteMins = startAbsoluteMins + oldStep;
 
-                        // Do not check bounds. Always calculate the new slot index relative to the new start time, 
-                        // even if it results in a negative index (meaning it's scheduled before the new visible startHour).
-                        // This preserves data permanently.
-                        const newSlotIndex = Math.floor((absoluteTimeMins - newStartMins) / newStep);
-                        const newKey = `${dayIndex}-${newSlotIndex}`;
-                        newSchedule[newKey] = state.schedule[key];
+                        // To preserve absolute time AND handle duration subdividing (e.g. 30min -> two 15min blocks),
+                        // we must iterate across the block's physical duration by the new step size.
+                        let currentMins = startAbsoluteMins;
 
-                        // Migrate associated note if it exists
-                        if (state.instanceNotes[key]) {
-                            newInstanceNotes[newKey] = state.instanceNotes[key];
+                        // We loop using < instead of <= because if a block ends at 7:30, it shouldn't spill into the 7:30 slot itself.
+                        while (currentMins < endAbsoluteMins) {
+                            const newSlotIndex = Math.floor((currentMins - newStartMins) / newStep);
+                            const newKey = `${dayIndex}-${newSlotIndex}`;
+
+                            // Map the primary schedule label
+                            newSchedule[newKey] = state.schedule[key];
+
+                            // Map associated instance notes to all sub-divisions
+                            if (state.instanceNotes[key]) {
+                                newInstanceNotes[newKey] = state.instanceNotes[key];
+                            }
+
+                            currentMins += newStep;
                         }
                     });
 
