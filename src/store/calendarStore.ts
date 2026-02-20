@@ -276,17 +276,25 @@ export const useCalendarStore = create<CalendarState>()(
                         }
                     }
 
-                    // Map Schedule
-                    const newSchedule: Record<string, string> = {};
-                    scheduleData?.forEach((entry: any) => {
-                        newSchedule[`${entry.day_index}-${entry.slot_index}`] = entry.label_id;
+                    // Map Raw Blocks
+                    const newRawBlocks: ScheduleBlock[] = scheduleData?.map((entry: any) => ({
+                        day_index: entry.day_index,
+                        start_minute: entry.start_minute, // Assuming backend now stores absolute start_minute!
+                        duration_minutes: entry.duration_minutes,
+                        label_id: entry.label_id
+                    })) || [];
+
+                    // Optimize blocks on load
+                    const optimizedBlocks = optimizeBlocks(newRawBlocks);
+
+                    // Map Raw Notes
+                    const newRawNotes: Record<string, string> = {};
+                    notesData?.forEach((note: any) => {
+                        newRawNotes[note.key] = note.content;
                     });
 
-                    // Map Instance Notes
-                    const newInstanceNotes: Record<string, string> = {};
-                    notesData?.forEach((note: any) => {
-                        newInstanceNotes[note.key] = note.content;
-                    });
+                    // Derive Schedule and InstanceNotes
+                    const { schedule: newSchedule, instanceNotes: newInstanceNotes } = generateUIState(newConfig, optimizedBlocks, newRawNotes);
 
                     // Map Stories
                     const newStories: Story[] = storiesData?.map((s: any) => ({
@@ -303,6 +311,8 @@ export const useCalendarStore = create<CalendarState>()(
                     set({
                         config: newConfig,
                         labels: newLabels,
+                        rawBlocks: optimizedBlocks,
+                        rawNotes: newRawNotes,
                         schedule: newSchedule,
                         instanceNotes: newInstanceNotes,
                         stories: newStories,
