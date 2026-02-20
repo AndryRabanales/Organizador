@@ -148,15 +148,20 @@ function generateUIState(config: CalendarConfig, rawBlocks: ScheduleBlock[], raw
     Object.keys(rawNotes).forEach(rawNoteKey => {
         const dashIndex = rawNoteKey.indexOf('-');
         if (dashIndex === -1) return;
+
+        // rawNoteKey is already in the format "dayIndex-absoluteMinute" (e.g. "0-360")
+        // Check if there is a block that covers this minute
         const dayIndex = parseInt(rawNoteKey.substring(0, dashIndex));
         const absMin = parseInt(rawNoteKey.substring(dashIndex + 1));
 
-        const slotIndex = Math.floor((absMin - startMins) / step);
-        const cellKey = `${dayIndex}-${slotIndex}`;
+        const blockExists = rawBlocks.some(b =>
+            b.day_index === dayIndex &&
+            b.start_minute <= absMin &&
+            (b.start_minute + b.duration_minutes) > absMin
+        );
 
-        // Only show note if the block overlaps the grid slot
-        if (newSchedule[cellKey]) {
-            newInstanceNotes[cellKey] = rawNotes[rawNoteKey];
+        if (blockExists) {
+            newInstanceNotes[rawNoteKey] = rawNotes[rawNoteKey];
         }
     });
 
