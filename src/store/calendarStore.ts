@@ -275,27 +275,29 @@ export const useCalendarStore = create<CalendarState>()(
                     const oldStep = oldConfig.stepMinutes;
 
                     const newStartMins = newConfig.startHour * 60 + newConfig.startMinute;
-                    const newEndMins = newConfig.endHour * 60 + newConfig.endMinute;
                     const newStep = newConfig.stepMinutes;
 
                     // Migrate Schedule
                     Object.keys(state.schedule).forEach(key => {
-                        const [dayStr, slotStr] = key.split('-');
+                        const dashIndex = key.indexOf('-');
+                        const dayStr = key.substring(0, dashIndex);
+                        const slotStr = key.substring(dashIndex + 1);
+
                         const dayIndex = parseInt(dayStr);
                         const oldSlotIndex = parseInt(slotStr);
 
                         const absoluteTimeMins = oldStartMins + (oldSlotIndex * oldStep);
 
-                        // Check if block falls within new bounds
-                        if (absoluteTimeMins >= newStartMins && absoluteTimeMins < newEndMins) {
-                            const newSlotIndex = Math.floor((absoluteTimeMins - newStartMins) / newStep);
-                            const newKey = `${dayIndex}-${newSlotIndex}`;
-                            newSchedule[newKey] = state.schedule[key];
+                        // Do not check bounds. Always calculate the new slot index relative to the new start time, 
+                        // even if it results in a negative index (meaning it's scheduled before the new visible startHour).
+                        // This preserves data permanently.
+                        const newSlotIndex = Math.floor((absoluteTimeMins - newStartMins) / newStep);
+                        const newKey = `${dayIndex}-${newSlotIndex}`;
+                        newSchedule[newKey] = state.schedule[key];
 
-                            // Migrate associated note if it exists
-                            if (state.instanceNotes[key]) {
-                                newInstanceNotes[newKey] = state.instanceNotes[key];
-                            }
+                        // Migrate associated note if it exists
+                        if (state.instanceNotes[key]) {
+                            newInstanceNotes[newKey] = state.instanceNotes[key];
                         }
                     });
 
@@ -327,11 +329,14 @@ export const useCalendarStore = create<CalendarState>()(
 
                                 // Bulk Insert new Schedule
                                 const scheduleUpserts = Object.keys(newSchedule).map(key => {
-                                    const [dayIndex, slotIndex] = key.split('-');
+                                    const dashIndex = key.indexOf('-');
+                                    const dayIndex = parseInt(key.substring(0, dashIndex));
+                                    const slotIndex = parseInt(key.substring(dashIndex + 1));
+
                                     return {
                                         user_id: userId,
-                                        day_index: parseInt(dayIndex),
-                                        slot_index: parseInt(slotIndex),
+                                        day_index: dayIndex,
+                                        slot_index: slotIndex,
                                         label_id: newSchedule[key]
                                     };
                                 });
