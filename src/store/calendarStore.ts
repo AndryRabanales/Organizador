@@ -64,10 +64,19 @@ export const DEFAULT_LABELS: CustomLabel[] = [
 
 export type ActivityType = string | null;
 
+export interface ScheduleBlock {
+    day_index: number;
+    start_minute: number;
+    duration_minutes: number;
+    label_id: string;
+}
+
 interface CalendarState {
     config: CalendarConfig;
     // Key: "dayIndex-timeSlotIndex", Value: label ID
     schedule: Record<string, string>;
+    rawBlocks: ScheduleBlock[];
+    rawNotes: Record<string, string>;
     labels: CustomLabel[];
     instanceNotes: Record<string, string>; // "day-slot" -> note
     dailyNotes: string;
@@ -113,6 +122,40 @@ interface CalendarState {
     isLocked: boolean;
 }
 
+
+
+function generateUIState(config: CalendarConfig, rawBlocks: ScheduleBlock[], rawNotes: Record<string, string>) {
+    const newSchedule: Record<string, string> = {};
+    const newInstanceNotes: Record<string, string> = {};
+    const startMins = config.startHour * 60 + config.startMinute;
+    const step = config.stepMinutes;
+
+    rawBlocks.forEach(block => {
+        let currentMin = block.start_minute;
+        const blockEnd = block.start_minute + block.duration_minutes;
+
+        while (currentMin < blockEnd) {
+            const slotIndex = Math.floor((currentMin - startMins) / step);
+            const cellKey = `${block.day_index}-${slotIndex}`;
+
+            newSchedule[cellKey] = block.label_id;
+
+            const rawNoteKey = `${block.day_index}-${block.start_minute}`;
+            if (rawNotes[rawNoteKey]) {
+                newInstanceNotes[cellKey] = rawNotes[rawNoteKey];
+            }
+
+            currentMin += step;
+        }
+    });
+
+    return { schedule: newSchedule, instanceNotes: newInstanceNotes };
+}
+
+function optimizeBlocks(blocks: ScheduleBlock[]) {
+    return blocks;
+}
+
 export const useCalendarStore = create<CalendarState>()(
     persist(
         (set, get) => ({
@@ -124,6 +167,8 @@ export const useCalendarStore = create<CalendarState>()(
                 stepMinutes: 30,
             },
             schedule: {},
+            rawBlocks: [],
+            rawNotes: {},
             instanceNotes: {},
             dailyNotes: '',
             labels: DEFAULT_LABELS,
@@ -267,51 +312,7 @@ export const useCalendarStore = create<CalendarState>()(
                     const oldConfig = state.config;
                     const newConfig = { ...oldConfig, ...newConfigParams };
 
-                    // Recalculate Offsets
-                    const newSchedule: Record<string, string> = {};
-                    const newInstanceNotes: Record<string, string> = {};
-
-                    const oldStartMins = oldConfig.startHour * 60 + oldConfig.startMinute;
-                    const oldStep = oldConfig.stepMinutes;
-
-                    const newStartMins = newConfig.startHour * 60 + newConfig.startMinute;
-                    const newStep = newConfig.stepMinutes;
-
-                    // Migrate Schedule
-                    Object.keys(state.schedule).forEach(key => {
-                        const dashIndex = key.indexOf('-');
-                        const dayStr = key.substring(0, dashIndex);
-                        const slotStr = key.substring(dashIndex + 1);
-
-                        const dayIndex = parseInt(dayStr);
-                        const oldSlotIndex = parseInt(slotStr);
-
-                        const startAbsoluteMins = oldStartMins + (oldSlotIndex * oldStep);
-                        const endAbsoluteMins = startAbsoluteMins + oldStep;
-
-                        // To preserve absolute time AND handle duration subdividing (e.g. 30min -> two 15min blocks),
-                        // we must iterate across the block's physical duration by the new step size.
-                        let currentMins = startAbsoluteMins;
-
-                        // We loop using < instead of <= because if a block ends at 7:30, it shouldn't spill into the 7:30 slot itself.
-                        while (currentMins < endAbsoluteMins) {
-                            const newSlotIndex = Math.floor((currentMins - newStartMins) / newStep);
-                            const newKey = `${dayIndex}-${newSlotIndex}`;
-
-                            // Map the primary schedule label
-                            newSchedule[newKey] = state.schedule[key];
-
-                            // Map associated instance notes to all sub-divisions
-                            if (state.instanceNotes[key]) {
-                                newInstanceNotes[newKey] = state.instanceNotes[key];
-                            }
-
-                            currentMins += newStep;
-                        }
-                    });
-
-                    // Any instance notes without a schedule block but within bounds could technically be migrated too,
-                    // but practically, notes are tied to blocks. The logic above handles notes tied to migrating blocks.
+                    const { schedule: newSchedule, instanceNotes: newInstanceNotes } = generateUIState(newConfig, state.rawBlocks, state.rawNotes);
 
                     return {
                         config: newConfig,
@@ -321,7 +322,6 @@ export const useCalendarStore = create<CalendarState>()(
                         pendingOps: [...state.pendingOps, async () => {
                             const userId = (await supabase.auth.getUser()).data.user?.id;
                             if (userId) {
-                                // 1. Save Config
                                 await supabase.from('calendar_config').upsert({
                                     user_id: userId,
                                     start_hour: newConfig.startHour,
@@ -330,42 +330,6 @@ export const useCalendarStore = create<CalendarState>()(
                                     end_minute: newConfig.endMinute,
                                     step_minutes: newConfig.stepMinutes
                                 }, { onConflict: 'user_id' });
-
-                                // 2. Perform Mass Cleanup and Mass Insert for Schedule & Notes
-                                // Delete all current schedule entries and notes
-                                await supabase.from('schedule_entries').delete().eq('user_id', userId);
-                                await supabase.from('instance_notes').delete().eq('user_id', userId);
-
-                                // Bulk Insert new Schedule
-                                const scheduleUpserts = Object.keys(newSchedule).map(key => {
-                                    const dashIndex = key.indexOf('-');
-                                    const dayIndex = parseInt(key.substring(0, dashIndex));
-                                    const slotIndex = parseInt(key.substring(dashIndex + 1));
-
-                                    return {
-                                        user_id: userId,
-                                        day_index: dayIndex,
-                                        slot_index: slotIndex,
-                                        label_id: newSchedule[key]
-                                    };
-                                });
-
-                                if (scheduleUpserts.length > 0) {
-                                    await supabase.from('schedule_entries').upsert(scheduleUpserts);
-                                }
-
-                                // Bulk Insert new Notes
-                                const noteUpserts = Object.keys(newInstanceNotes).map(key => {
-                                    return {
-                                        user_id: userId,
-                                        key: key,
-                                        content: newInstanceNotes[key]
-                                    };
-                                });
-
-                                if (noteUpserts.length > 0) {
-                                    await supabase.from('instance_notes').upsert(noteUpserts);
-                                }
                             }
                         }]
                     };
@@ -373,103 +337,76 @@ export const useCalendarStore = create<CalendarState>()(
             },
 
             setCell: async (dayIndex, slotIndex, labelId) => {
-                const { isLocked, schedule, instanceNotes } = get();
+                const { isLocked, schedule } = get();
                 if (isLocked) return;
-
                 const key = `${dayIndex}-${slotIndex}`;
-                // Toggle if single click on same type
                 const current = schedule[key];
-                const next = current === labelId ? undefined : labelId;
-
-                const newSchedule = { ...schedule };
-                const newInstanceNotes = { ...instanceNotes };
-
-                if (next === undefined) {
-                    delete newSchedule[key];
-                    delete newInstanceNotes[key];
-                } else {
-                    newSchedule[key] = next;
-                }
-
-                set((state) => ({
-                    schedule: newSchedule,
-                    instanceNotes: newInstanceNotes,
-                    hasUnsavedChanges: true,
-                    pendingOps: [...state.pendingOps, async () => {
-                        const userId = (await supabase.auth.getUser()).data.user?.id;
-                        if (!userId) return;
-
-                        if (next === undefined) {
-                            await supabase.from('schedule_entries').delete().match({ day_index: dayIndex, slot_index: slotIndex });
-                            await supabase.from('instance_notes').delete().match({ key });
-                        } else {
-                            await supabase.from('schedule_entries').upsert({
-                                user_id: userId,
-                                day_index: dayIndex,
-                                slot_index: slotIndex,
-                                label_id: next
-                            }, { onConflict: 'user_id,day_index,slot_index' });
-                        }
-                    }]
-                }));
+                const next = current === labelId ? null : labelId;
+                get().setCellsBatch([{ day: dayIndex, slot: slotIndex }], next);
             },
 
             updateCell: async (dayIndex, slotIndex, labelId) => {
-                const { isLocked, schedule, instanceNotes } = get();
+                const { isLocked } = get();
                 if (isLocked) return;
-
-                const key = `${dayIndex}-${slotIndex}`;
-                const newSchedule = { ...schedule };
-                const newInstanceNotes = { ...instanceNotes };
-
-                if (labelId === undefined || labelId === null) {
-                    delete newSchedule[key];
-                    delete newInstanceNotes[key];
-                } else {
-                    newSchedule[key] = labelId;
-                }
-
-                set((state) => ({
-                    schedule: newSchedule,
-                    instanceNotes: newInstanceNotes,
-                    hasUnsavedChanges: true,
-                    pendingOps: [...state.pendingOps, async () => {
-                        const userId = (await supabase.auth.getUser()).data.user?.id;
-                        if (!userId) return;
-
-                        if (labelId === undefined || labelId === null) {
-                            await supabase.from('schedule_entries').delete().match({ day_index: dayIndex, slot_index: slotIndex });
-                            await supabase.from('instance_notes').delete().match({ key });
-                        } else {
-                            await supabase.from('schedule_entries').upsert({
-                                user_id: userId,
-                                day_index: dayIndex,
-                                slot_index: slotIndex,
-                                label_id: labelId
-                            }, { onConflict: 'user_id,day_index,slot_index' });
-                        }
-                    }]
-                }));
+                get().setCellsBatch([{ day: dayIndex, slot: slotIndex }], labelId || null);
             },
 
             setCellsBatch: async (cells, labelId) => {
-                const { isLocked, schedule, instanceNotes } = get();
+                const { isLocked, config, rawBlocks, rawNotes } = get();
                 if (isLocked) return;
 
-                const newSchedule = { ...schedule };
-                const newInstanceNotes = { ...instanceNotes };
+                const startMins = config.startHour * 60 + config.startMinute;
+                const step = config.stepMinutes;
+
+                let newRawBlocks = [...rawBlocks];
+                let newRawNotes = { ...rawNotes };
 
                 cells.forEach(cell => {
-                    const key = `${cell.day}-${cell.slot}`;
-                    if (labelId === null) {
-                        delete newSchedule[key];
-                        delete newInstanceNotes[key];
-                    } else {
-                        newSchedule[key] = labelId;
+                    const cellStart = startMins + (cell.slot * step);
+                    const cellEnd = cellStart + step;
+
+                    let slicedBlocks: ScheduleBlock[] = [];
+                    newRawBlocks.forEach(b => {
+                        if (b.day_index !== cell.day) {
+                            slicedBlocks.push(b);
+                            return;
+                        }
+                        const bStart = b.start_minute;
+                        const bEnd = b.start_minute + b.duration_minutes;
+
+                        if (bEnd <= cellStart || bStart >= cellEnd) {
+                            slicedBlocks.push(b);
+                        } else {
+                            if (bStart < cellStart) {
+                                slicedBlocks.push({ ...b, duration_minutes: cellStart - bStart });
+                            }
+                            if (bEnd > cellEnd) {
+                                slicedBlocks.push({ ...b, start_minute: cellEnd, duration_minutes: bEnd - cellEnd });
+                            }
+                            const noteKey = `${b.day_index}-${bStart}`;
+                            if (cellStart <= bStart && cellEnd >= bStart) {
+                                delete newRawNotes[noteKey];
+                            }
+                        }
+                    });
+                    newRawBlocks = slicedBlocks;
+
+                    if (labelId !== null) {
+                        newRawBlocks.push({
+                            day_index: cell.day,
+                            start_minute: cellStart,
+                            duration_minutes: step,
+                            label_id: labelId
+                        });
                     }
                 });
 
+                newRawBlocks = optimizeBlocks(newRawBlocks);
+                const { schedule: newSchedule, instanceNotes: newInstanceNotes } = generateUIState(config, newRawBlocks, newRawNotes);
+
                 set((state) => ({
+                    rawBlocks: newRawBlocks,
+                    rawNotes: newRawNotes,
                     schedule: newSchedule,
                     instanceNotes: newInstanceNotes,
                     hasUnsavedChanges: true,
@@ -477,28 +414,33 @@ export const useCalendarStore = create<CalendarState>()(
                         const userId = (await supabase.auth.getUser()).data.user?.id;
                         if (!userId) return;
 
-                        const upserts: any[] = [];
-                        if (labelId === null) {
-                            for (const cell of cells) {
-                                await supabase.from('schedule_entries').delete().match({ day_index: cell.day, slot_index: cell.slot });
-                                await supabase.from('instance_notes').delete().match({ key: `${cell.day}-${cell.slot}` });
-                            }
-                        } else {
-                            cells.forEach(cell => {
-                                upserts.push({
-                                    user_id: userId,
-                                    day_index: cell.day,
-                                    slot_index: cell.slot,
-                                    label_id: labelId
-                                });
-                            });
-                            if (upserts.length > 0) {
-                                await supabase.from('schedule_entries').upsert(upserts, { onConflict: 'user_id,day_index,slot_index' });
-                            }
+                        await supabase.from('schedule_entries').delete().eq('user_id', userId);
+                        await supabase.from('instance_notes').delete().eq('user_id', userId);
+
+                        const scheduleUpserts = newRawBlocks.map(b => ({
+                            user_id: userId,
+                            day_index: b.day_index,
+                            start_minute: b.start_minute,
+                            duration_minutes: b.duration_minutes,
+                            label_id: b.label_id
+                        }));
+
+                        if (scheduleUpserts.length > 0) {
+                            await supabase.from('schedule_entries').insert(scheduleUpserts);
+                        }
+
+                        const notesUpserts = Object.keys(newRawNotes).map(key => ({
+                            user_id: userId,
+                            key: key,
+                            content: newRawNotes[key]
+                        }));
+                        if (notesUpserts.length > 0) {
+                            await supabase.from('instance_notes').insert(notesUpserts);
                         }
                     }]
                 }));
             },
+
 
             clearSchedule: () => set((state) => {
                 if (state.isLocked) return {};
@@ -596,20 +538,45 @@ export const useCalendarStore = create<CalendarState>()(
             },
 
             updateInstanceNote: async (key, notes) => {
-                set((state) => ({
-                    instanceNotes: { ...state.instanceNotes, [key]: notes },
-                    hasUnsavedChanges: true,
-                    pendingOps: [...state.pendingOps, async () => {
-                        const userId = (await supabase.auth.getUser()).data.user?.id;
-                        if (userId) {
-                            await supabase.from('instance_notes').upsert({
-                                user_id: userId,
-                                key,
-                                content: notes
-                            }, { onConflict: 'user_id,key' });
-                        }
-                    }]
-                }));
+                set((state) => {
+                    const startMins = state.config.startHour * 60 + state.config.startMinute;
+                    const step = state.config.stepMinutes;
+                    const dashIndex = key.indexOf('-');
+                    const dayIndex = parseInt(key.substring(0, dashIndex));
+                    const slotIndex = parseInt(key.substring(dashIndex + 1));
+
+                    const absoluteMinute = startMins + (slotIndex * step);
+                    const absoluteKey = `${dayIndex}-${absoluteMinute}`;
+
+                    const newRawNotes = { ...state.rawNotes };
+                    if (notes.trim() === '') {
+                        delete newRawNotes[absoluteKey];
+                    } else {
+                        newRawNotes[absoluteKey] = notes;
+                    }
+
+                    const { instanceNotes: newInstanceNotes } = generateUIState(state.config, state.rawBlocks, newRawNotes);
+
+                    return {
+                        rawNotes: newRawNotes,
+                        instanceNotes: newInstanceNotes,
+                        hasUnsavedChanges: true,
+                        pendingOps: [...state.pendingOps, async () => {
+                            const userId = (await supabase.auth.getUser()).data.user?.id;
+                            if (userId) {
+                                if (notes.trim() === '') {
+                                    await supabase.from('instance_notes').delete().match({ key: absoluteKey });
+                                } else {
+                                    await supabase.from('instance_notes').upsert({
+                                        user_id: userId,
+                                        key: absoluteKey,
+                                        content: notes
+                                    }, { onConflict: 'user_id,key' });
+                                }
+                            }
+                        }]
+                    };
+                });
             },
 
             updateDailyNotes: async (labelId, notes) => {
