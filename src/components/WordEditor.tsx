@@ -13,7 +13,7 @@ interface WordEditorProps {
 
 function WordEditorComponent({ label, subLabel, value, onChange, color, placeholder, disabled }: WordEditorProps) {
     const editorRef = useRef<HTMLDivElement>(null);
-    const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
     const lastEmittedValue = useRef(value);
 
     // Sync external value to innerHTML
@@ -29,26 +29,16 @@ function WordEditorComponent({ label, subLabel, value, onChange, color, placehol
     }, [value]);
 
     const emitChange = (newValue: string) => {
-        if (debounceTimer.current) clearTimeout(debounceTimer.current);
         lastEmittedValue.current = newValue;
         onChange(newValue);
     };
 
     const handleInput = (e: React.FormEvent<HTMLDivElement>) => {
         const val = e.currentTarget.innerHTML;
-
-        // Clear existing timer
-        if (debounceTimer.current) clearTimeout(debounceTimer.current);
-
-        // Set new timer
-        debounceTimer.current = setTimeout(() => {
-            emitChange(val);
-        }, 1000); // 1 second debounce
+        emitChange(val);
     };
 
     const handleBlur = (e: React.FocusEvent<HTMLDivElement>) => {
-        // Flush immediately on blur
-        if (debounceTimer.current) clearTimeout(debounceTimer.current);
         const val = e.currentTarget.innerHTML;
         emitChange(val);
     };

@@ -594,6 +594,7 @@ export const useCalendarStore = create<CalendarState>()(
 
             updateInstanceNote: async (key, notes) => {
                 set((state) => {
+                    console.log("[DEBUG] updateInstanceNote called with KEY:", key, "NOTES:", notes);
                     const newRawNotes = { ...state.rawNotes };
                     if (notes.trim() === '') {
                         delete newRawNotes[key];
@@ -601,7 +602,11 @@ export const useCalendarStore = create<CalendarState>()(
                         newRawNotes[key] = notes;
                     }
 
+                    console.log("[DEBUG] newRawNotes after update:", newRawNotes);
+
                     const { instanceNotes: newInstanceNotes } = generateUIState(state.config, state.rawBlocks, newRawNotes);
+
+                    console.log("[DEBUG] newInstanceNotes from generateUIState:", newInstanceNotes);
 
                     return {
                         rawNotes: newRawNotes,

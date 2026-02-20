@@ -20,10 +20,11 @@ create table if not exists public.schedule_entries (
   id uuid default uuid_generate_v4() primary key,
   user_id uuid not null references auth.users(id) on delete cascade,
   day_index integer not null, -- 0-6
-  slot_index integer not null, -- Depends on stepMinutes config
+  start_minute integer not null, -- Absolute minute of the day (e.g., 360 for 6:00 AM)
+  duration_minutes integer default 30 not null,
   label_id text references public.labels(id) on delete cascade,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
-  unique(user_id, day_index, slot_index) -- Unique constraint for upsert
+  unique(user_id, day_index, start_minute) -- Unique constraint for upsert
 );
 
 -- 3. INSTANCE NOTES TABLE
