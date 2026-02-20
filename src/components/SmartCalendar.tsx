@@ -550,33 +550,6 @@ export function SmartCalendar() {
     const tbodyRef = useRef<HTMLTableSectionElement>(null);
     const panelRef = useRef<HTMLDivElement>(null);
 
-    // Robust Arrow Positioning Metrics
-    const [arrowMetrics, setArrowMetrics] = useState({ topOffset: 36, height: 500 });
-
-    useEffect(() => {
-        const updateMetrics = () => {
-            if (panelRef.current && tbodyRef.current) {
-                const panelRect = panelRef.current.getBoundingClientRect();
-                const bodyRect = tbodyRef.current.getBoundingClientRect();
-
-                // Calculate where tbody starts relative to the panel
-                const topOffset = bodyRect.top - panelRect.top;
-                const height = bodyRect.height;
-
-                setArrowMetrics({ topOffset, height });
-            }
-        };
-
-        updateMetrics();
-        window.addEventListener('resize', updateMetrics);
-        const timeoutId = setTimeout(updateMetrics, 100);
-
-        return () => {
-            window.removeEventListener('resize', updateMetrics);
-            clearTimeout(timeoutId);
-        };
-    }, [config.startHour, config.endHour, config.stepMinutes]);
-
     // Refs to keep handlers fresh without re-binding listeners
     const onMouseDownRef = useRef(handleMouseDown);
     const onMouseEnterRef = useRef(handleMouseEnter);
@@ -711,7 +684,7 @@ export function SmartCalendar() {
         };
     }, []); // Empty dependency array = listeners bound ONCE
 
-    const slots = [];
+    const slots: { label: string, totalMinutes: number }[] = [];
     let currentMin = config.startHour * 60 + config.startMinute;
     const endMin = config.endHour * 60 + config.endMinute;
 
@@ -730,6 +703,56 @@ export function SmartCalendar() {
     const range = endTotalMins - startTotalMins;
     const elapsed = currentTotalMins - startTotalMins;
     const percentage = (elapsed / range) * 100;
+
+    // --- NEW ARROW POSITIONING LOGIC ---
+    const [arrowY, setArrowY] = useState(-1000); // Hidden initially
+
+    useEffect(() => {
+        const updateArrow = () => {
+            if (!panelRef.current || !tbodyRef.current || !isTimeVisible) return;
+
+            // Find which slot the current time falls into (0-indexed based on rendered rows)
+            const activeSlotIndex = slots.findIndex((s, i) => {
+                const nextSlotMin = slots[i + 1] ? slots[i + 1].totalMinutes : (s.totalMinutes + config.stepMinutes);
+                return currentTotalMins >= s.totalMinutes && currentTotalMins < nextSlotMin;
+            });
+
+            if (activeSlotIndex !== -1) {
+                const activeSlot = slots[activeSlotIndex];
+                const nextSlotMin = slots[activeSlotIndex + 1] ? slots[activeSlotIndex + 1].totalMinutes : (activeSlot.totalMinutes + config.stepMinutes);
+
+                // Mathematical fraction inside this specific row (0.0 to 1.0)
+                const fraction = (currentTotalMins - activeSlot.totalMinutes) / (nextSlotMin - activeSlot.totalMinutes);
+
+                // Target the exact TR element visually to bypass any CSS border accumulation errors globally
+                const tr = tbodyRef.current.children[activeSlotIndex] as HTMLElement;
+                if (tr) {
+                    const trRect = tr.getBoundingClientRect();
+                    const panelRect = panelRef.current.getBoundingClientRect();
+
+                    const calculatedTop = (trRect.top - panelRect.top) + (trRect.height * fraction);
+                    setArrowY(calculatedTop);
+                }
+            } else if (currentTotalMins >= endTotalMins) {
+                // Pin to bottom if time is past the calendar end
+                const lastTr = tbodyRef.current.lastElementChild as HTMLElement;
+                if (lastTr) {
+                    const trRect = lastTr.getBoundingClientRect();
+                    const panelRect = panelRef.current.getBoundingClientRect();
+                    setArrowY(trRect.bottom - panelRect.top);
+                }
+            }
+        };
+
+        updateArrow();
+        window.addEventListener('resize', updateArrow);
+
+        const timeoutId = setTimeout(updateArrow, 100);
+        return () => {
+            window.removeEventListener('resize', updateArrow);
+            clearTimeout(timeoutId);
+        };
+    }, [currentTotalMins, slots, config.stepMinutes, isTimeVisible, endTotalMins]);
 
     // Derived current day index (0=Mon, 6=Sun)
     const jsDay = now.getDay();
@@ -967,7 +990,7 @@ export function SmartCalendar() {
                         {isTimeVisible && (
                             <div
                                 className="absolute w-full flex items-center z-30 pointer-events-none transition-all duration-1000 ease-linear -translate-y-1/2"
-                                style={{ top: `${arrowMetrics.topOffset + arrowMetrics.height * (percentage / 100)}px` }}
+                                style={{ top: `${arrowY}px` }}
                             >
                                 <div className="w-16 pr-1 flex justify-end relative">
                                     <div className="absolute -left-12 bg-emerald-100 border border-emerald-300 text-emerald-700 px-1.5 py-0.5 rounded shadow-sm text-[9px] font-bold font-mono">
