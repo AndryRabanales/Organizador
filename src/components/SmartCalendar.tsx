@@ -532,7 +532,6 @@ export function SmartCalendar() {
 
 
     // --- Calculations ---
-    // Helper to check if a cell is inside the CURRENT selection rect (for visual preview)
     const isCellSelected = (col: number, row: number) => {
         if (!selectionStart) return false;
 
@@ -549,6 +548,34 @@ export function SmartCalendar() {
 
     // --- Native Touch Handling for Mobile Selection ---
     const tbodyRef = useRef<HTMLTableSectionElement>(null);
+    const panelRef = useRef<HTMLDivElement>(null);
+
+    // Robust Arrow Positioning Metrics
+    const [arrowMetrics, setArrowMetrics] = useState({ topOffset: 36, height: 500 });
+
+    useEffect(() => {
+        const updateMetrics = () => {
+            if (panelRef.current && tbodyRef.current) {
+                const panelRect = panelRef.current.getBoundingClientRect();
+                const bodyRect = tbodyRef.current.getBoundingClientRect();
+
+                // Calculate where tbody starts relative to the panel
+                const topOffset = bodyRect.top - panelRect.top;
+                const height = bodyRect.height;
+
+                setArrowMetrics({ topOffset, height });
+            }
+        };
+
+        updateMetrics();
+        window.addEventListener('resize', updateMetrics);
+        const timeoutId = setTimeout(updateMetrics, 100);
+
+        return () => {
+            window.removeEventListener('resize', updateMetrics);
+            clearTimeout(timeoutId);
+        };
+    }, [config.startHour, config.endHour, config.stepMinutes]);
 
     // Refs to keep handlers fresh without re-binding listeners
     const onMouseDownRef = useRef(handleMouseDown);
@@ -932,17 +959,20 @@ export function SmartCalendar() {
                 {/* Grid */}
                 {/* Grid */}
                 <div ref={containerRef} className="flex-1 overflow-auto p-0 pt-0 custom-scrollbar overscroll-x-none">
-                    <div className={clsx(
+                    <div ref={panelRef} className={clsx(
                         "glass-panel p-1 relative select-none transition-all duration-500 mb-16",
                         appMode === 'focus' ? "w-[75%] max-w-[280px] mx-auto shadow-2xl ring-1 ring-slate-900/5 bg-white rounded-xl my-4" : "w-full max-w-none mx-auto"
                     )}>
                         {/* Real-time Arrow */}
                         {isTimeVisible && (
                             <div
-                                className="absolute w-full flex items-center z-30 pointer-events-none transition-all duration-1000 ease-linear"
-                                style={{ top: `calc(36px + (100% - 36px) * ${percentage / 100})` }}
+                                className="absolute w-full flex items-center z-30 pointer-events-none transition-all duration-1000 ease-linear -translate-y-1/2"
+                                style={{ top: `${arrowMetrics.topOffset + arrowMetrics.height * (percentage / 100)}px` }}
                             >
-                                <div className="w-16 pr-1 flex justify-end">
+                                <div className="w-16 pr-1 flex justify-end relative">
+                                    <div className="absolute -left-12 bg-emerald-100 border border-emerald-300 text-emerald-700 px-1.5 py-0.5 rounded shadow-sm text-[9px] font-bold font-mono">
+                                        {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    </div>
                                     <div className="text-emerald-600 font-bold text-lg drop-shadow-[0_2px_4px_rgba(0,0,0,0.1)]">➤</div>
                                 </div>
                                 <div className="flex-1 h-0.5 bg-emerald-500/50 shadow-[0_0_10px_rgba(16,185,129,0.3)]"></div>
