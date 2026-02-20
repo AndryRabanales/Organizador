@@ -579,20 +579,11 @@ export const useCalendarStore = create<CalendarState>()(
 
             updateInstanceNote: async (key, notes) => {
                 set((state) => {
-                    const startMins = state.config.startHour * 60 + state.config.startMinute;
-                    const step = state.config.stepMinutes;
-                    const dashIndex = key.indexOf('-');
-                    const dayIndex = parseInt(key.substring(0, dashIndex));
-                    const slotIndex = parseInt(key.substring(dashIndex + 1));
-
-                    const absoluteMinute = startMins + (slotIndex * step);
-                    const absoluteKey = `${dayIndex}-${absoluteMinute}`;
-
                     const newRawNotes = { ...state.rawNotes };
                     if (notes.trim() === '') {
-                        delete newRawNotes[absoluteKey];
+                        delete newRawNotes[key];
                     } else {
-                        newRawNotes[absoluteKey] = notes;
+                        newRawNotes[key] = notes;
                     }
 
                     const { instanceNotes: newInstanceNotes } = generateUIState(state.config, state.rawBlocks, newRawNotes);
@@ -605,11 +596,11 @@ export const useCalendarStore = create<CalendarState>()(
                             const userId = (await supabase.auth.getUser()).data.user?.id;
                             if (userId) {
                                 if (notes.trim() === '') {
-                                    await supabase.from('instance_notes').delete().match({ key: absoluteKey });
+                                    await supabase.from('instance_notes').delete().match({ key: key });
                                 } else {
                                     await supabase.from('instance_notes').upsert({
                                         user_id: userId,
-                                        key: absoluteKey,
+                                        key: key,
                                         content: notes
                                     }, { onConflict: 'user_id,key' });
                                 }
