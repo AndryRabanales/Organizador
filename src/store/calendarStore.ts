@@ -131,21 +131,32 @@ function generateUIState(config: CalendarConfig, rawBlocks: ScheduleBlock[], raw
     const step = config.stepMinutes;
 
     rawBlocks.forEach(block => {
-        let currentMin = block.start_minute;
-        const blockEnd = block.start_minute + block.duration_minutes;
+        if (block.duration_minutes <= 0) return;
+        const bStart = block.start_minute;
+        const bEnd = block.start_minute + block.duration_minutes;
 
-        while (currentMin < blockEnd) {
-            const slotIndex = Math.floor((currentMin - startMins) / step);
-            const cellKey = `${block.day_index}-${slotIndex}`;
+        // Calculate exact slot overlap
+        const minSlot = Math.floor((bStart - startMins) / step);
+        const maxSlot = Math.floor((bEnd - 1 - startMins) / step);
 
+        for (let s = minSlot; s <= maxSlot; s++) {
+            const cellKey = `${block.day_index}-${s}`;
             newSchedule[cellKey] = block.label_id;
+        }
+    });
 
-            const rawNoteKey = `${block.day_index}-${block.start_minute}`;
-            if (rawNotes[rawNoteKey]) {
-                newInstanceNotes[cellKey] = rawNotes[rawNoteKey];
-            }
+    Object.keys(rawNotes).forEach(rawNoteKey => {
+        const dashIndex = rawNoteKey.indexOf('-');
+        if (dashIndex === -1) return;
+        const dayIndex = parseInt(rawNoteKey.substring(0, dashIndex));
+        const absMin = parseInt(rawNoteKey.substring(dashIndex + 1));
 
-            currentMin += step;
+        const slotIndex = Math.floor((absMin - startMins) / step);
+        const cellKey = `${dayIndex}-${slotIndex}`;
+
+        // Only show note if the block overlaps the grid slot
+        if (newSchedule[cellKey]) {
+            newInstanceNotes[cellKey] = rawNotes[rawNoteKey];
         }
     });
 
@@ -153,7 +164,31 @@ function generateUIState(config: CalendarConfig, rawBlocks: ScheduleBlock[], raw
 }
 
 function optimizeBlocks(blocks: ScheduleBlock[]) {
-    return blocks;
+    // Sort blocks sequentially
+    const sorted = [...blocks].sort((a, b) => {
+        if (a.day_index !== b.day_index) return a.day_index - b.day_index;
+        return a.start_minute - b.start_minute;
+    });
+
+    const merged: ScheduleBlock[] = [];
+    sorted.forEach(b => {
+        if (b.duration_minutes <= 0) return;
+        if (merged.length === 0) {
+            merged.push({ ...b });
+            return;
+        }
+        const last = merged[merged.length - 1];
+        // Merge seamlessly contiguous blocks of the same type to keep DB neat
+        if (last.day_index === b.day_index &&
+            last.label_id === b.label_id &&
+            last.start_minute + last.duration_minutes === b.start_minute) {
+            last.duration_minutes += b.duration_minutes;
+        } else {
+            merged.push({ ...b });
+        }
+    });
+
+    return merged;
 }
 
 export const useCalendarStore = create<CalendarState>()(
@@ -383,10 +418,15 @@ export const useCalendarStore = create<CalendarState>()(
                             if (bEnd > cellEnd) {
                                 slicedBlocks.push({ ...b, start_minute: cellEnd, duration_minutes: bEnd - cellEnd });
                             }
-                            const noteKey = `${b.day_index}-${bStart}`;
-                            if (cellStart <= bStart && cellEnd >= bStart) {
-                                delete newRawNotes[noteKey];
-                            }
+                            // Delete any note that falls inside the overwritten/deleted cell
+                            Object.keys(newRawNotes).forEach(rawNoteKey => {
+                                const dashIdx = rawNoteKey.indexOf('-');
+                                const nDay = parseInt(rawNoteKey.substring(0, dashIdx));
+                                const nMin = parseInt(rawNoteKey.substring(dashIdx + 1));
+                                if (nDay === cell.day && nMin >= cellStart && nMin < cellEnd) {
+                                    delete newRawNotes[rawNoteKey];
+                                }
+                            });
                         }
                     });
                     newRawBlocks = slicedBlocks;
