@@ -342,16 +342,15 @@ export function SmartCalendar() {
         if (appMode !== 'focus') return null;
 
         const currentMinutes = now.getHours() * 60 + now.getMinutes();
-        const startMinutes = config.startHour * 60;
+        const startMinutes = config.startHour * 60 + config.startMinute; // ← include startMinute
+        const endMinutes = config.endHour * 60 + config.endMinute;
 
         // Ensure within bounds
-        if (currentMinutes < startMinutes || currentMinutes > config.endHour * 60) return null;
+        if (currentMinutes < startMinutes || currentMinutes > endMinutes) return null;
 
         const slotIndex = Math.floor((currentMinutes - startMinutes) / config.stepMinutes);
         const cellKey = `${currentDayIndex}-${slotIndex}`;
         const labelId = schedule[cellKey];
-
-
 
         const label = labels.find(l => l.id === labelId);
 
@@ -367,7 +366,7 @@ export function SmartCalendar() {
 
         // Get notes — instanceNotes are keyed as "dayIndex-absoluteMinute" (not slotIndex)
         const globalNote = label.notes;
-        const slotAbsoluteMin = config.startHour * 60 + config.startMinute + (slotIndex * config.stepMinutes);
+        const slotAbsoluteMin = startMinutes + (slotIndex * config.stepMinutes);
         const instanceNote = instanceNotes[`${currentDayIndex}-${slotAbsoluteMin}`];
 
         return { label, globalNote, instanceNote, isPlaceholder: false };
