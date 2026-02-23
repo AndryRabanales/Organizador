@@ -16,16 +16,15 @@ function WordEditorComponent({ label, subLabel, value, onChange, color, placehol
 
     const lastEmittedValue = useRef(value);
 
-    // Sync external value to innerHTML
+    // Sync external value to innerHTML whenever the editor doesn't have focus.
+    // We intentionally skip the lastEmittedValue gate: on first mount lastEmittedValue===value,
+    // so without this fix the contenteditable would start empty even if value is non-empty.
     useEffect(() => {
-        if (editorRef.current && value !== lastEmittedValue.current) {
-            if (document.activeElement !== editorRef.current) {
-                editorRef.current.innerHTML = value;
-                lastEmittedValue.current = value;
-            }
-        } else if (editorRef.current && value === '' && editorRef.current.innerHTML === '<br>') {
-            editorRef.current.innerHTML = '';
-        }
+        if (!editorRef.current) return;
+        if (document.activeElement === editorRef.current) return; // user is actively typing – don't interrupt
+        if (editorRef.current.innerHTML === value) return; // already in sync
+        editorRef.current.innerHTML = value;
+        lastEmittedValue.current = value;
     }, [value]);
 
     const emitChange = (newValue: string) => {
