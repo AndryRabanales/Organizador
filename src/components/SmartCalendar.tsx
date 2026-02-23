@@ -421,11 +421,15 @@ export function SmartCalendar() {
     const handleMouseDown = useCallback((col: number, row: number) => {
         // If Locked, allow "Viewing" of the cell's label content (Read Only Access)
         if (isLocked) {
-            const key = `${col}-${row}`;
-            const labelId = schedule[key];
+            const scheduleKey = `${col}-${row}`; // schedule uses dayIndex-slotIndex
+            const labelId = schedule[scheduleKey];
             if (labelId) {
+                // instanceNotes/rawNotes use dayIndex-absoluteMinute format
+                const startMins = config.startHour * 60 + config.startMinute;
+                const absoluteMin = startMins + (row * config.stepMinutes);
+                const noteKey = `${col}-${absoluteMin}`;
                 setEditingLabelId(labelId);
-                setEditingCellKey(key);
+                setEditingCellKey(noteKey);
             }
             return;
         }

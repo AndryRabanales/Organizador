@@ -410,6 +410,7 @@ export const useCalendarStore = create<CalendarState>()(
 
                 let newRawBlocks = [...rawBlocks];
                 let newRawNotes = { ...rawNotes };
+                const deletedNoteKeys: string[] = []; // Track exactly which note keys are removed
 
                 cells.forEach(cell => {
                     const cellStart = startMins + (cell.slot * step);
@@ -439,6 +440,7 @@ export const useCalendarStore = create<CalendarState>()(
                                 const nDay = parseInt(rawNoteKey.substring(0, dashIdx));
                                 const nMin = parseInt(rawNoteKey.substring(dashIdx + 1));
                                 if (nDay === cell.day && nMin >= cellStart && nMin < cellEnd) {
+                                    deletedNoteKeys.push(rawNoteKey);
                                     delete newRawNotes[rawNoteKey];
                                 }
                             });
@@ -459,6 +461,10 @@ export const useCalendarStore = create<CalendarState>()(
                 newRawBlocks = optimizeBlocks(newRawBlocks);
                 const { schedule: newSchedule, instanceNotes: newInstanceNotes } = generateUIState(config, newRawBlocks, newRawNotes);
 
+                // Snapshot deletedNoteKeys for the async closure
+                const keysToDelete = [...deletedNoteKeys];
+                const blocksSnapshot = newRawBlocks;
+
                 set((state) => ({
                     rawBlocks: newRawBlocks,
                     rawNotes: newRawNotes,
@@ -469,10 +475,10 @@ export const useCalendarStore = create<CalendarState>()(
                         const userId = (await supabase.auth.getUser()).data.user?.id;
                         if (!userId) return;
 
+                        // Only delete the schedule entries and re-insert (full replace for schedule is fine)
                         await supabase.from('schedule_entries').delete().eq('user_id', userId);
-                        await supabase.from('instance_notes').delete().eq('user_id', userId);
 
-                        const scheduleUpserts = newRawBlocks.map(b => ({
+                        const scheduleUpserts = blocksSnapshot.map(b => ({
                             user_id: userId,
                             day_index: b.day_index,
                             start_minute: b.start_minute,
@@ -484,13 +490,11 @@ export const useCalendarStore = create<CalendarState>()(
                             await supabase.from('schedule_entries').insert(scheduleUpserts);
                         }
 
-                        const notesUpserts = Object.keys(newRawNotes).map(key => ({
-                            user_id: userId,
-                            key: key,
-                            content: newRawNotes[key]
-                        }));
-                        if (notesUpserts.length > 0) {
-                            await supabase.from('instance_notes').insert(notesUpserts);
+                        // Only delete the specific note keys that were removed — never wipe all notes
+                        for (const key of keysToDelete) {
+                            await supabase.from('instance_notes')
+                                .delete()
+                                .match({ user_id: userId, key });
                         }
                     }]
                 }));
