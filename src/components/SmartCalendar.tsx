@@ -365,9 +365,10 @@ export function SmartCalendar() {
             };
         }
 
-        // Get notes
+        // Get notes — instanceNotes are keyed as "dayIndex-absoluteMinute" (not slotIndex)
         const globalNote = label.notes;
-        const instanceNote = instanceNotes[cellKey];
+        const slotAbsoluteMin = config.startHour * 60 + config.startMinute + (slotIndex * config.stepMinutes);
+        const instanceNote = instanceNotes[`${currentDayIndex}-${slotAbsoluteMin}`];
 
         return { label, globalNote, instanceNote, isPlaceholder: false };
     }, [appMode, now, config, schedule, labels, instanceNotes, currentDayIndex, t]);
