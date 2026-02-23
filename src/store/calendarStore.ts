@@ -145,22 +145,10 @@ function generateUIState(config: CalendarConfig, rawBlocks: ScheduleBlock[], raw
         }
     });
 
+    // Copy all rawNotes directly into instanceNotes.
+    // Note cleanup (when a block is deleted) is handled in setCellsBatch, not here.
     Object.keys(rawNotes).forEach(rawNoteKey => {
-        const dashIndex = rawNoteKey.indexOf('-');
-        if (dashIndex === -1) return;
-
-        // rawNoteKey is already in the format "dayIndex-absoluteMinute" (e.g. "0-360")
-        // Check if there is a block that covers this minute
-        const dayIndex = parseInt(rawNoteKey.substring(0, dashIndex));
-        const absMin = parseInt(rawNoteKey.substring(dashIndex + 1));
-
-        const blockExists = rawBlocks.some(b =>
-            b.day_index === dayIndex &&
-            b.start_minute <= absMin &&
-            (b.start_minute + b.duration_minutes) > absMin
-        );
-
-        if (blockExists) {
+        if (rawNoteKey.indexOf('-') !== -1) {
             newInstanceNotes[rawNoteKey] = rawNotes[rawNoteKey];
         }
     });
@@ -597,41 +585,38 @@ export const useCalendarStore = create<CalendarState>()(
             },
 
             updateInstanceNote: async (key, notes) => {
+                // Update state immediately (synchronous)
                 set((state) => {
-                    console.log("[DEBUG] updateInstanceNote called with KEY:", key, "NOTES:", notes);
                     const newRawNotes = { ...state.rawNotes };
-                    if (notes.trim() === '') {
+                    if (!notes || notes.replace(/<[^>]*>/g, '').trim() === '') {
                         delete newRawNotes[key];
                     } else {
                         newRawNotes[key] = notes;
                     }
-
-                    console.log("[DEBUG] newRawNotes after update:", newRawNotes);
-
                     const { instanceNotes: newInstanceNotes } = generateUIState(state.config, state.rawBlocks, newRawNotes);
-
-                    console.log("[DEBUG] newInstanceNotes from generateUIState:", newInstanceNotes);
-
                     return {
                         rawNotes: newRawNotes,
                         instanceNotes: newInstanceNotes,
-                        hasUnsavedChanges: true,
-                        pendingOps: [...state.pendingOps, async () => {
-                            const userId = (await supabase.auth.getUser()).data.user?.id;
-                            if (userId) {
-                                if (notes.trim() === '') {
-                                    await supabase.from('instance_notes').delete().match({ key: key });
-                                } else {
-                                    await supabase.from('instance_notes').upsert({
-                                        user_id: userId,
-                                        key: key,
-                                        content: notes
-                                    }, { onConflict: 'user_id,key' });
-                                }
-                            }
-                        }]
                     };
                 });
+
+                // Save directly to DB immediately (no pendingOps queue)
+                try {
+                    const userId = (await supabase.auth.getUser()).data.user?.id;
+                    if (userId) {
+                        const isBlank = !notes || notes.replace(/<[^>]*>/g, '').trim() === '';
+                        if (isBlank) {
+                            await supabase.from('instance_notes')
+                                .delete()
+                                .match({ user_id: userId, key });
+                        } else {
+                            await supabase.from('instance_notes')
+                                .upsert({ user_id: userId, key, content: notes }, { onConflict: 'user_id,key' });
+                        }
+                    }
+                } catch (err) {
+                    console.error('[updateInstanceNote] DB save failed:', err);
+                }
             },
 
             updateDailyNotes: async (labelId, notes) => {
@@ -848,6 +833,7 @@ export const useCalendarStore = create<CalendarState>()(
                 config: state.config,
                 schedule: state.schedule,
                 labels: state.labels,
+                rawNotes: state.rawNotes,
                 instanceNotes: state.instanceNotes,
                 stories: state.stories,
                 isLocked: state.isLocked,
