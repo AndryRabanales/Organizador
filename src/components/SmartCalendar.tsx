@@ -93,7 +93,7 @@ const CalendarCell = memo(({
 
                         {!isLocked && heightPercent > 15 && (
                             <button
-                                onClick={(e) => { e.stopPropagation(); onNoteClick(labelObj.id, `${colIndex}-${block.start_minute}`); }}
+                                onClick={(e) => { e.stopPropagation(); onNoteClick(labelObj.id, `${colIndex}-${slotTotalMinutes}`); }}
                                 onMouseDown={(e) => e.stopPropagation()}
                                 className="absolute top-0 right-0 p-0.5 m-0.5 rounded hover:bg-white/50 text-slate-600/70 hover:text-slate-900 transition-all z-20 pointer-events-auto"
                                 title={t('notes')}
