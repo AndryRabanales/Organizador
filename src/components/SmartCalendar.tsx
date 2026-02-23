@@ -1609,6 +1609,7 @@ export function SmartCalendar() {
                                     {activeTab === 'global' && (
                                         <div className="animate-in fade-in duration-200">
                                             <WordEditor
+                                                key={`global-${editingLabel.id}`}
                                                 label={t('globalConfig')}
                                                 subLabel={`Notes for all "${editingLabel.name}" blocks`}
                                                 color="#10B981" // Emerald
@@ -1622,6 +1623,7 @@ export function SmartCalendar() {
                                     {activeTab === 'instance' && (
                                         <div className="animate-in fade-in duration-200">
                                             <WordEditor
+                                                key={`instance-${editingCellKey || 'none'}`}
                                                 label={t('thisSpecificBlock')}
                                                 subLabel={editingCellKey ? "Notes for just this specific time slot" : "Select a specific block on the grid to filter"}
                                                 color="#3B82F6" // Blue
@@ -1641,7 +1643,7 @@ export function SmartCalendar() {
                                     {activeTab.startsWith('tab-') && editingLabel.customTabs?.[activeTab] && (
                                         <div className="animate-in fade-in duration-200">
                                             <WordEditor
-                                                key={activeTab}
+                                                key={`${editingLabel.id}-${activeTab}`}
                                                 label={editingLabel.customTabs[activeTab].title}
                                                 subLabel={t('customNote')}
                                                 color="#8B5CF6" // Violet
