@@ -226,10 +226,7 @@ export const AI_TOOLS = {
 
     set_block_note: async ({ dayIndex, hour, minute, note }: { dayIndex: number, hour: number, minute: number, note: string }) => {
         const store = getStore();
-        const step = store.config.stepMinutes;
         const startTotalMinutes = hour * 60 + minute;
-        const configStartMinutes = store.config.startHour * 60;
-        const startSlot = Math.floor((startTotalMinutes - configStartMinutes) / step);
 
         const key = `${dayIndex}-${startTotalMinutes}`;
         store.updateInstanceNote(key, note);
