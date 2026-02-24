@@ -585,7 +585,6 @@ export const useCalendarStore = create<CalendarState>()(
             },
 
             updateInstanceNote: async (key, notes) => {
-                // Update state immediately (synchronous)
                 set((state) => {
                     const newRawNotes = { ...state.rawNotes };
                     if (!notes || notes.replace(/<[^>]*>/g, '').trim() === '') {
@@ -594,29 +593,27 @@ export const useCalendarStore = create<CalendarState>()(
                         newRawNotes[key] = notes;
                     }
                     const { instanceNotes: newInstanceNotes } = generateUIState(state.config, state.rawBlocks, newRawNotes);
+
                     return {
                         rawNotes: newRawNotes,
                         instanceNotes: newInstanceNotes,
+                        hasUnsavedChanges: true,
+                        pendingOps: [...state.pendingOps, async () => {
+                            const userId = (await supabase.auth.getUser()).data.user?.id;
+                            if (!userId) return;
+
+                            const isBlank = !notes || notes.replace(/<[^>]*>/g, '').trim() === '';
+                            if (isBlank) {
+                                await supabase.from('instance_notes')
+                                    .delete()
+                                    .match({ user_id: userId, key });
+                            } else {
+                                await supabase.from('instance_notes')
+                                    .upsert({ user_id: userId, key, content: notes }, { onConflict: 'user_id,key' });
+                            }
+                        }]
                     };
                 });
-
-                // Save directly to DB immediately (no pendingOps queue)
-                try {
-                    const userId = (await supabase.auth.getUser()).data.user?.id;
-                    if (userId) {
-                        const isBlank = !notes || notes.replace(/<[^>]*>/g, '').trim() === '';
-                        if (isBlank) {
-                            await supabase.from('instance_notes')
-                                .delete()
-                                .match({ user_id: userId, key });
-                        } else {
-                            await supabase.from('instance_notes')
-                                .upsert({ user_id: userId, key, content: notes }, { onConflict: 'user_id,key' });
-                        }
-                    }
-                } catch (err) {
-                    console.error('[updateInstanceNote] DB save failed:', err);
-                }
             },
 
             updateDailyNotes: async (labelId, notes) => {

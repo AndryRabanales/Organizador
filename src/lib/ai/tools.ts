@@ -176,8 +176,8 @@ export const AI_TOOLS = {
         store.setCellsBatch(cells, label.id);
 
         if (note) {
-            // Add note to the first cell
-            const key = `${dayIndex}-${startSlot}`;
+            // Add note to the first cell using absolute minute key
+            const key = `${dayIndex}-${startTotalMinutes}`;
             store.updateInstanceNote(key, note);
         }
 
@@ -231,7 +231,7 @@ export const AI_TOOLS = {
         const configStartMinutes = store.config.startHour * 60;
         const startSlot = Math.floor((startTotalMinutes - configStartMinutes) / step);
 
-        const key = `${dayIndex}-${startSlot}`;
+        const key = `${dayIndex}-${startTotalMinutes}`;
         store.updateInstanceNote(key, note);
         return `Updated note for block at ${dayIndex}, ${hour}:${minute}`;
     },

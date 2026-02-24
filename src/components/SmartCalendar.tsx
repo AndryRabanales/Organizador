@@ -1045,16 +1045,16 @@ export function SmartCalendar() {
                                                     </h3>
                                                     {(currentBlockInfo.globalNote || currentBlockInfo.instanceNote) ? (
                                                         <div className="text-xs text-slate-600 mt-1 space-y-1">
+                                                            {currentBlockInfo.globalNote && (
+                                                                <div
+                                                                    className="opacity-80 [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4"
+                                                                    dangerouslySetInnerHTML={{ __html: currentBlockInfo.globalNote }}
+                                                                />
+                                                            )}
                                                             {currentBlockInfo.instanceNote && (
                                                                 <div
                                                                     className="bg-yellow-50 p-1.5 rounded border border-yellow-100 [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4 [&_li]:marker:text-slate-400"
                                                                     dangerouslySetInnerHTML={{ __html: currentBlockInfo.instanceNote }}
-                                                                />
-                                                            )}
-                                                            {currentBlockInfo.globalNote && (
-                                                                <div
-                                                                    className="opacity-80 line-clamp-3 [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4"
-                                                                    dangerouslySetInnerHTML={{ __html: currentBlockInfo.globalNote }}
                                                                 />
                                                             )}
                                                         </div>
