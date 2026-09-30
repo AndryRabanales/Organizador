@@ -82,7 +82,11 @@ interface CalendarState {
     dailyNotes: string;
     stories: Story[];
     isLoading: boolean; // Loading state
+    isSaving: boolean;
     hasUnsavedChanges: boolean;
+    /** Message of the last failed sync (save or fetch). null when everything is in sync. */
+    syncError: string | null;
+    lastSyncedAt: number | null;
 
     // Internal queue for deferred DB operations
     pendingOps: (() => Promise<any>)[];
@@ -94,9 +98,13 @@ interface CalendarState {
     clearSchedule: () => void;
 
     // Async Actions
-    fetchData: () => Promise<void>;
+    fetchData: (opts?: { silent?: boolean }) => Promise<void>;
     saveChanges: (silent?: boolean) => Promise<void>;
     discardChanges: () => void;
+    /** Re-fetch from the server only when there is nothing pending locally (safe to call often). */
+    refreshIfIdle: () => Promise<void>;
+    /** Subscribe to realtime + visibility changes so other devices' edits show up here. Returns an unsubscribe fn. */
+    startRealtimeSync: () => () => void;
 
     addLabel: (name: string, color: string) => void;
     removeLabel: (id: string) => void;
@@ -123,6 +131,21 @@ interface CalendarState {
 }
 
 
+
+/** Throws when a Supabase response carries an error, so a failed write can never be mistaken for a saved one. */
+function must<T extends { error: unknown }>(res: T): T {
+    if (res.error) throw res.error;
+    return res;
+}
+
+function errorMessage(error: unknown): string {
+    if (error instanceof Error) return error.message;
+    if (error && typeof error === 'object' && 'message' in error) return String((error as { message: unknown }).message);
+    return String(error);
+}
+
+/** Tables whose changes on another device must refresh this one. */
+const SYNCED_TABLES = ['calendar_config', 'labels', 'schedule_entries', 'instance_notes', 'stories'] as const;
 
 function generateUIState(config: CalendarConfig, rawBlocks: ScheduleBlock[], rawNotes: Record<string, string>) {
     const newSchedule: Record<string, string> = {};
@@ -203,18 +226,28 @@ export const useCalendarStore = create<CalendarState>()(
             stories: [],
             isLocked: true, // Default to true (Viewing Mode)
             isLoading: true, // Start as true
+            isSaving: false,
             hasUnsavedChanges: false,
+            syncError: null,
+            lastSyncedAt: null,
             pendingOps: [],
 
-            fetchData: async () => {
-                set({ isLoading: true });
+            fetchData: async (opts = {}) => {
+                const silent = !!opts.silent;
+                if (silent) {
+                    const { hasUnsavedChanges, pendingOps, isSaving } = get();
+                    // Never overwrite edits that have not reached the server yet.
+                    if (hasUnsavedChanges || pendingOps.length > 0 || isSaving) return;
+                } else {
+                    set({ isLoading: true });
+                }
                 try {
-                    console.log("Fetching from Supabase...");
-                    const { data: configData } = await supabase.from('calendar_config').select('*').maybeSingle();
-                    const { data: labelsData, error: lError } = await supabase.from('labels').select('*');
-                    const { data: scheduleData } = await supabase.from('schedule_entries').select('*');
-                    const { data: notesData } = await supabase.from('instance_notes').select('*');
-                    const { data: storiesData } = await supabase.from('stories').select('*');
+                    console.log(silent ? "Refreshing from Supabase..." : "Fetching from Supabase...");
+                    const { data: configData } = must(await supabase.from('calendar_config').select('*').maybeSingle());
+                    const { data: labelsData, error: lError } = must(await supabase.from('labels').select('*'));
+                    const { data: scheduleData } = must(await supabase.from('schedule_entries').select('*'));
+                    const { data: notesData } = must(await supabase.from('instance_notes').select('*'));
+                    const { data: storiesData } = must(await supabase.from('stories').select('*'));
 
                     if (lError) throw lError;
 
@@ -247,20 +280,18 @@ export const useCalendarStore = create<CalendarState>()(
                     if ((!labelsData || labelsData.length === 0) && newLabels === DEFAULT_LABELS) {
                         const userId = (await supabase.auth.getUser()).data.user?.id;
                         if (userId) {
-                            // Seed defaults async
-                            DEFAULT_LABELS.forEach(l => {
-                                supabase.from('labels').insert({
-                                    id: l.id,
-                                    user_id: userId,
-                                    name: l.name,
-                                    color: l.color,
-                                    notes: '',
-                                    daily_notes: '',
-                                    open_tabs: l.openTabs,
-                                    trashed_tabs: l.trashedTabs,
-                                    custom_tabs: l.customTabs
-                                }).then();
-                            });
+                            // Seed defaults (errors are logged, never silently dropped)
+                            must(await supabase.from('labels').insert(DEFAULT_LABELS.map(l => ({
+                                id: l.id,
+                                user_id: userId,
+                                name: l.name,
+                                color: l.color,
+                                notes: '',
+                                daily_notes: '',
+                                open_tabs: l.openTabs,
+                                trashed_tabs: l.trashedTabs,
+                                custom_tabs: l.customTabs
+                            }))));
                         }
                     }
 
@@ -296,7 +327,12 @@ export const useCalendarStore = create<CalendarState>()(
                         status: s.status as any
                     })) || [];
 
-                    set({
+                    if (silent && (get().hasUnsavedChanges || get().pendingOps.length > 0 || get().isSaving)) {
+                        // The user started editing while the request was in flight; keep their edits.
+                        return;
+                    }
+
+                    set((state) => ({
                         config: newConfig,
                         labels: newLabels,
                         rawBlocks: optimizedBlocks,
@@ -305,37 +341,97 @@ export const useCalendarStore = create<CalendarState>()(
                         instanceNotes: newInstanceNotes,
                         stories: newStories,
                         isLoading: false,
-                        isLocked: true, // Force viewing mode on load
+                        isLocked: silent ? state.isLocked : true, // Force viewing mode on a full load only
                         hasUnsavedChanges: false,
-                        pendingOps: []
-                    });
-                    console.log("Data fetched successfully");
+                        pendingOps: [],
+                        syncError: null,
+                        lastSyncedAt: Date.now()
+                    }));
+                    console.log(silent ? "Data refreshed" : "Data fetched successfully");
 
                 } catch (error) {
                     console.error("Error fetching data:", error);
-                    set({ isLoading: false });
+                    set({ isLoading: false, syncError: errorMessage(error) });
                 }
             },
 
-            saveChanges: async (silent = false) => {
-                const { pendingOps } = get();
-                if (pendingOps.length === 0) return;
+            refreshIfIdle: async () => {
+                await get().fetchData({ silent: true });
+            },
 
-                if (!silent) set({ isLoading: true });
+            startRealtimeSync: () => {
+                let timer: ReturnType<typeof setTimeout> | null = null;
+                const scheduleRefresh = () => {
+                    if (timer) clearTimeout(timer);
+                    // Debounce: a save touches several tables in a row.
+                    timer = setTimeout(() => { timer = null; void get().refreshIfIdle(); }, 800);
+                };
+
+                const channel = supabase.channel('calendar-sync');
+                SYNCED_TABLES.forEach((table) => {
+                    channel.on('postgres_changes', { event: '*', schema: 'public', table }, scheduleRefresh);
+                });
+                channel.subscribe((status) => {
+                    // On (re)connect, catch up on anything missed while the socket was down.
+                    if (status === 'SUBSCRIBED') scheduleRefresh();
+                });
+
+                // Phones suspend background tabs: refresh whenever the app comes back to the foreground.
+                const onVisible = () => {
+                    if (document.visibilityState === 'visible') scheduleRefresh();
+                };
+                document.addEventListener('visibilitychange', onVisible);
+                window.addEventListener('focus', onVisible);
+                window.addEventListener('online', scheduleRefresh);
+
+                return () => {
+                    if (timer) clearTimeout(timer);
+                    document.removeEventListener('visibilitychange', onVisible);
+                    window.removeEventListener('focus', onVisible);
+                    window.removeEventListener('online', scheduleRefresh);
+                    void supabase.removeChannel(channel);
+                };
+            },
+
+            saveChanges: async (silent = false) => {
+                const { pendingOps, isSaving } = get();
+                if (pendingOps.length === 0 || isSaving) return;
+
+                // Snapshot: ops queued while this save is running stay in the queue for the next one.
+                const opsToRun = pendingOps;
+                set({ isSaving: true, syncError: null, ...(silent ? {} : { isLoading: true }) });
+
+                let completed = 0;
                 try {
-                    // Execute all pending operations sequentially
-                    for (const op of pendingOps) {
+                    for (const op of opsToRun) {
                         await op();
+                        completed++;
                     }
-                    set({
-                        hasUnsavedChanges: false,
-                        pendingOps: [],
-                        isLoading: false
+                    set((state) => {
+                        const remaining = state.pendingOps.filter(op => !opsToRun.includes(op));
+                        return {
+                            pendingOps: remaining,
+                            hasUnsavedChanges: remaining.length > 0,
+                            isSaving: false,
+                            isLoading: false,
+                            lastSyncedAt: Date.now()
+                        };
                     });
+                    // Flush anything that was queued while we were saving.
+                    if (get().pendingOps.length > 0) void get().saveChanges(true);
                 } catch (error) {
+                    const message = errorMessage(error);
                     console.error("Error saving changes:", error);
-                    if (!silent) alert("Error saving changes. See console.");
-                    set({ isLoading: false });
+                    const done = opsToRun.slice(0, completed);
+                    set((state) => ({
+                        // Drop the ops that succeeded; keep the failed one and everything after it for retry.
+                        pendingOps: state.pendingOps.filter(op => !done.includes(op)),
+                        hasUnsavedChanges: true,
+                        isSaving: false,
+                        isLoading: false,
+                        syncError: message
+                    }));
+                    if (!silent) alert(`Error saving changes: ${message}`);
                 }
             },
 
@@ -360,14 +456,15 @@ export const useCalendarStore = create<CalendarState>()(
                         pendingOps: [...state.pendingOps, async () => {
                             const userId = (await supabase.auth.getUser()).data.user?.id;
                             if (userId) {
-                                await supabase.from('calendar_config').upsert({
+                                must(await supabase.from('calendar_config').upsert({
                                     user_id: userId,
                                     start_hour: newConfig.startHour,
                                     start_minute: newConfig.startMinute,
                                     end_hour: newConfig.endHour,
                                     end_minute: newConfig.endMinute,
-                                    step_minutes: newConfig.stepMinutes
-                                }, { onConflict: 'user_id' });
+                                    step_minutes: newConfig.stepMinutes,
+                                    updated_at: new Date().toISOString()
+                                }, { onConflict: 'user_id' }));
                             }
                         }]
                     };
@@ -464,7 +561,7 @@ export const useCalendarStore = create<CalendarState>()(
                         if (!userId) return;
 
                         // Only delete the schedule entries and re-insert (full replace for schedule is fine)
-                        await supabase.from('schedule_entries').delete().eq('user_id', userId);
+                        must(await supabase.from('schedule_entries').delete().eq('user_id', userId));
 
                         const scheduleUpserts = blocksSnapshot.map(b => ({
                             user_id: userId,
@@ -475,14 +572,14 @@ export const useCalendarStore = create<CalendarState>()(
                         }));
 
                         if (scheduleUpserts.length > 0) {
-                            await supabase.from('schedule_entries').insert(scheduleUpserts);
+                            must(await supabase.from('schedule_entries').insert(scheduleUpserts));
                         }
 
                         // Only delete the specific note keys that were removed — never wipe all notes
                         for (const key of keysToDelete) {
-                            await supabase.from('instance_notes')
+                            must(await supabase.from('instance_notes')
                                 .delete()
-                                .match({ user_id: userId, key });
+                                .match({ user_id: userId, key }));
                         }
                     }]
                 }));
@@ -494,12 +591,14 @@ export const useCalendarStore = create<CalendarState>()(
                 return {
                     schedule: {},
                     instanceNotes: {},
+                    rawBlocks: [],
+                    rawNotes: {},
                     hasUnsavedChanges: true,
                     pendingOps: [...state.pendingOps, async () => {
                         const userId = (await supabase.auth.getUser()).data.user?.id;
                         if (userId) {
-                            await supabase.from('schedule_entries').delete().eq('user_id', userId);
-                            await supabase.from('instance_notes').delete().eq('user_id', userId);
+                            must(await supabase.from('schedule_entries').delete().eq('user_id', userId));
+                            must(await supabase.from('instance_notes').delete().eq('user_id', userId));
                         }
                     }]
                 }
@@ -523,7 +622,7 @@ export const useCalendarStore = create<CalendarState>()(
                     pendingOps: [...state.pendingOps, async () => {
                         const userId = (await supabase.auth.getUser()).data.user?.id;
                         if (userId) {
-                            await supabase.from('labels').insert({
+                            must(await supabase.from('labels').insert({
                                 id: newLabel.id,
                                 user_id: userId,
                                 name: newLabel.name,
@@ -533,7 +632,7 @@ export const useCalendarStore = create<CalendarState>()(
                                 open_tabs: newLabel.openTabs,
                                 trashed_tabs: newLabel.trashedTabs,
                                 custom_tabs: newLabel.customTabs
-                            });
+                            }));
                         }
                     }]
                 }));
@@ -541,23 +640,41 @@ export const useCalendarStore = create<CalendarState>()(
 
             removeLabel: async (id) => {
                 set((state) => {
-                    const keysToRemove = Object.keys(state.schedule).filter(key => state.schedule[key] === id);
-                    const newSchedule = { ...state.schedule };
-                    const newInstanceNotes = { ...state.instanceNotes };
-                    keysToRemove.forEach(key => {
-                        delete newSchedule[key];
-                        delete newInstanceNotes[key];
+                    const removedBlocks = state.rawBlocks.filter(b => b.label_id === id);
+                    const newRawBlocks = state.rawBlocks.filter(b => b.label_id !== id);
+
+                    // Notes that lived inside the removed blocks go away with them.
+                    const newRawNotes = { ...state.rawNotes };
+                    const noteKeysToDelete: string[] = [];
+                    Object.keys(newRawNotes).forEach(rawNoteKey => {
+                        const dashIdx = rawNoteKey.indexOf('-');
+                        const nDay = parseInt(rawNoteKey.substring(0, dashIdx));
+                        const nMin = parseInt(rawNoteKey.substring(dashIdx + 1));
+                        const inside = removedBlocks.some(b =>
+                            b.day_index === nDay && nMin >= b.start_minute && nMin < b.start_minute + b.duration_minutes
+                        );
+                        if (inside) {
+                            noteKeysToDelete.push(rawNoteKey);
+                            delete newRawNotes[rawNoteKey];
+                        }
                     });
+
+                    const { schedule: newSchedule, instanceNotes: newInstanceNotes } = generateUIState(state.config, newRawBlocks, newRawNotes);
 
                     return {
                         labels: state.labels.filter(l => l.id !== id),
+                        rawBlocks: newRawBlocks,
+                        rawNotes: newRawNotes,
                         schedule: newSchedule,
                         instanceNotes: newInstanceNotes,
                         hasUnsavedChanges: true,
                         pendingOps: [...state.pendingOps, async () => {
                             const userId = (await supabase.auth.getUser()).data.user?.id;
-                            if (userId) {
-                                await supabase.from('labels').delete().eq('id', id);
+                            if (!userId) return;
+                            // schedule_entries cascade on label delete; notes are keyed by time so remove them explicitly.
+                            must(await supabase.from('labels').delete().eq('id', id));
+                            for (const key of noteKeysToDelete) {
+                                must(await supabase.from('instance_notes').delete().match({ user_id: userId, key }));
                             }
                         }]
                     };
@@ -569,7 +686,7 @@ export const useCalendarStore = create<CalendarState>()(
                     labels: state.labels.map(l => l.id === id ? { ...l, notes } : l),
                     hasUnsavedChanges: true,
                     pendingOps: [...state.pendingOps, async () => {
-                        await supabase.from('labels').update({ notes }).eq('id', id);
+                        must(await supabase.from('labels').update({ notes }).eq('id', id));
                     }]
                 }));
             },
@@ -579,7 +696,7 @@ export const useCalendarStore = create<CalendarState>()(
                     labels: state.labels.map(l => l.id === id ? { ...l, ...updates } : l),
                     hasUnsavedChanges: true,
                     pendingOps: [...state.pendingOps, async () => {
-                        await supabase.from('labels').update(updates).eq('id', id);
+                        must(await supabase.from('labels').update(updates).eq('id', id));
                     }]
                 }));
             },
@@ -604,12 +721,12 @@ export const useCalendarStore = create<CalendarState>()(
 
                             const isBlank = !notes || notes.replace(/<[^>]*>/g, '').trim() === '';
                             if (isBlank) {
-                                await supabase.from('instance_notes')
+                                must(await supabase.from('instance_notes')
                                     .delete()
-                                    .match({ user_id: userId, key });
+                                    .match({ user_id: userId, key }));
                             } else {
-                                await supabase.from('instance_notes')
-                                    .upsert({ user_id: userId, key, content: notes }, { onConflict: 'user_id,key' });
+                                must(await supabase.from('instance_notes')
+                                    .upsert({ user_id: userId, key, content: notes }, { onConflict: 'user_id,key' }));
                             }
                         }]
                     };
@@ -621,7 +738,7 @@ export const useCalendarStore = create<CalendarState>()(
                     labels: state.labels.map(l => l.id === labelId ? { ...l, dailyNotes: notes } : l),
                     hasUnsavedChanges: true,
                     pendingOps: [...state.pendingOps, async () => {
-                        await supabase.from('labels').update({ daily_notes: notes }).eq('id', labelId);
+                        must(await supabase.from('labels').update({ daily_notes: notes }).eq('id', labelId));
                     }]
                 }));
             },
@@ -639,7 +756,7 @@ export const useCalendarStore = create<CalendarState>()(
                     pendingOps: [...state.pendingOps, async () => {
                         const userId = (await supabase.auth.getUser()).data.user?.id;
                         if (userId) {
-                            await supabase.from('stories').insert({
+                            must(await supabase.from('stories').insert({
                                 id: newStory.id,
                                 user_id: userId,
                                 day_index: newStory.dayIndex,
@@ -649,7 +766,7 @@ export const useCalendarStore = create<CalendarState>()(
                                 content: newStory.content,
                                 created_at: newStory.createdAt,
                                 status: newStory.status
-                            });
+                            }));
                         }
                     }]
                 }));
@@ -660,7 +777,7 @@ export const useCalendarStore = create<CalendarState>()(
                     stories: state.stories.map(s => s.id === id ? { ...s, ...updates } : s),
                     hasUnsavedChanges: true,
                     pendingOps: [...state.pendingOps, async () => {
-                        await supabase.from('stories').update(updates).eq('id', id);
+                        must(await supabase.from('stories').update(updates).eq('id', id));
                     }]
                 }));
             },
@@ -670,7 +787,7 @@ export const useCalendarStore = create<CalendarState>()(
                     stories: state.stories.filter(s => s.id !== id),
                     hasUnsavedChanges: true,
                     pendingOps: [...state.pendingOps, async () => {
-                        await supabase.from('stories').delete().eq('id', id);
+                        must(await supabase.from('stories').delete().eq('id', id));
                     }]
                 }));
             },
@@ -699,10 +816,10 @@ export const useCalendarStore = create<CalendarState>()(
                         labels: state.labels.map(l => l.id === labelId ? updatedLabel : l),
                         hasUnsavedChanges: true,
                         pendingOps: [...state.pendingOps, async () => {
-                            await supabase.from('labels').update({
+                            must(await supabase.from('labels').update({
                                 open_tabs: updatedLabel.openTabs,
                                 custom_tabs: updatedLabel.customTabs
-                            }).eq('id', labelId);
+                            }).eq('id', labelId));
                         }]
                     };
                 });
@@ -723,10 +840,10 @@ export const useCalendarStore = create<CalendarState>()(
                         labels: state.labels.map(l => l.id === labelId ? updatedLabel : l),
                         hasUnsavedChanges: true,
                         pendingOps: [...state.pendingOps, async () => {
-                            await supabase.from('labels').update({
+                            must(await supabase.from('labels').update({
                                 open_tabs: updatedLabel.openTabs,
                                 trashed_tabs: updatedLabel.trashedTabs
-                            }).eq('id', labelId);
+                            }).eq('id', labelId));
                         }]
                     };
                 });
@@ -747,10 +864,10 @@ export const useCalendarStore = create<CalendarState>()(
                         labels: state.labels.map(l => l.id === labelId ? updatedLabel : l),
                         hasUnsavedChanges: true,
                         pendingOps: [...state.pendingOps, async () => {
-                            await supabase.from('labels').update({
+                            must(await supabase.from('labels').update({
                                 open_tabs: updatedLabel.openTabs,
                                 trashed_tabs: updatedLabel.trashedTabs
-                            }).eq('id', labelId);
+                            }).eq('id', labelId));
                         }]
                     };
                 });
@@ -776,10 +893,10 @@ export const useCalendarStore = create<CalendarState>()(
                         labels: state.labels.map(l => l.id === labelId ? updatedLabel : l),
                         hasUnsavedChanges: true,
                         pendingOps: [...state.pendingOps, async () => {
-                            await supabase.from('labels').update({
+                            must(await supabase.from('labels').update({
                                 trashed_tabs: updatedLabel.trashedTabs,
                                 custom_tabs: updatedLabel.customTabs
-                            }).eq('id', labelId);
+                            }).eq('id', labelId));
                         }]
                     };
                 });
@@ -804,9 +921,9 @@ export const useCalendarStore = create<CalendarState>()(
                         labels: state.labels.map(l => l.id === labelId ? updatedLabel : l),
                         hasUnsavedChanges: true,
                         pendingOps: [...state.pendingOps, async () => {
-                            await supabase.from('labels').update({
+                            must(await supabase.from('labels').update({
                                 custom_tabs: updatedLabel.customTabs
-                            }).eq('id', labelId);
+                            }).eq('id', labelId));
                         }]
                     }
                 });
@@ -817,7 +934,7 @@ export const useCalendarStore = create<CalendarState>()(
                     labels: state.labels.map(l => l.id === labelId ? { ...l, openTabs: newOrder } : l),
                     hasUnsavedChanges: true,
                     pendingOps: [...state.pendingOps, async () => {
-                        await supabase.from('labels').update({ open_tabs: newOrder }).eq('id', labelId);
+                        must(await supabase.from('labels').update({ open_tabs: newOrder }).eq('id', labelId));
                     }]
                 }));
             },

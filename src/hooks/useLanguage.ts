@@ -69,7 +69,10 @@ const LOCALE_DATA = {
         secureBadge: 'Secure Encryption via Supabase',
         copyright: 'BIO Organizer System',
         editingMode: 'Editing Mode',
-        freeTime: 'Free Time'
+        freeTime: 'Free Time',
+        syncError: 'Changes could not be saved',
+        retry: 'Retry',
+        reloadFromServer: 'Reload from server'
     },
     es: {
         // Days
@@ -137,7 +140,10 @@ const LOCALE_DATA = {
         secureBadge: 'Encriptación Segura vía Supabase',
         copyright: 'Sistema Organizador BIO',
         editingMode: 'Modo Edición',
-        freeTime: 'Tiempo Libre'
+        freeTime: 'Tiempo Libre',
+        syncError: 'No se pudieron guardar los cambios',
+        retry: 'Reintentar',
+        reloadFromServer: 'Recargar del servidor'
     }
 };
 

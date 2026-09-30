@@ -144,7 +144,7 @@ const CalendarCell = memo(({
 
 export function SmartCalendar() {
     const { t, days: DAYS } = useLanguage();
-    const { config, rawBlocks, schedule, labels, isLocked, instanceNotes, stories, setConfig, setCellsBatch, clearSchedule, addLabel, removeLabel, updateLabelNotes, updateInstanceNote, toggleLock, addTab, closeTab, restoreTab, deleteTabForever, updateCustomTab, reorderTabs, addStory, updateStory, removeStory, hasUnsavedChanges, saveChanges, discardChanges } = useCalendarStore();
+    const { config, rawBlocks, schedule, labels, isLocked, instanceNotes, stories, setConfig, setCellsBatch, clearSchedule, addLabel, removeLabel, updateLabelNotes, updateInstanceNote, toggleLock, addTab, closeTab, restoreTab, deleteTabForever, updateCustomTab, reorderTabs, addStory, updateStory, removeStory, hasUnsavedChanges, saveChanges, discardChanges, syncError } = useCalendarStore();
     const [selectedBrush, setSelectedBrush] = useState<string>(DEFAULT_LABELS[0].id);
     const [editingLabelId, setEditingLabelId] = useState<string | null>(null);
     const [editingCellKey, setEditingCellKey] = useState<string | null>(null);
@@ -154,8 +154,11 @@ export function SmartCalendar() {
     const [activeBottomPanel, setActiveBottomPanel] = useState<'none' | 'config' | 'story'>('none');
 
     // --- AUTO SAVE ---
+    // Keyed on the number of queued operations so every new edit re-arms the debounce,
+    // even after a previous save failed (hasUnsavedChanges would stay true and never re-trigger).
+    const pendingCount = useCalendarStore(state => state.pendingOps.length);
     useEffect(() => {
-        if (!hasUnsavedChanges) return;
+        if (pendingCount === 0) return;
 
         const timeoutId = setTimeout(() => {
             console.log("Auto-saving changes...");
@@ -163,7 +166,7 @@ export function SmartCalendar() {
         }, 2000); // 2 second debounce
 
         return () => clearTimeout(timeoutId);
-    }, [hasUnsavedChanges, saveChanges]);
+    }, [pendingCount, saveChanges]);
 
     // --- AI AGENT STATE ---
     // No dedicated component state needed for inline, but we need processing state
@@ -285,10 +288,15 @@ export function SmartCalendar() {
     useEffect(() => {
         const timer = setInterval(() => setNow(new Date()), 1000);
 
-        // Initial Fetch
-        useCalendarStore.getState().fetchData();
+        // Initial Fetch + keep this device in sync with edits made on other devices
+        const store = useCalendarStore.getState();
+        store.fetchData();
+        const stopSync = store.startRealtimeSync();
 
-        return () => clearInterval(timer);
+        return () => {
+            clearInterval(timer);
+            stopSync();
+        };
     }, []);
 
     // Creation State
@@ -823,6 +831,25 @@ export function SmartCalendar() {
                 <div className="absolute inset-0 z-[200] bg-white flex flex-col items-center justify-center gap-4 animate-in fade-in duration-500">
                     <div className="w-8 h-8 rounded-full border-4 border-emerald-500/30 border-t-emerald-500 animate-spin" />
                     <p className="text-emerald-500 font-mono text-xs uppercase tracking-widest animate-pulse">{t('syncing')}</p>
+                </div>
+            )}
+
+            {/* Sync failure banner: a change that did not reach the server is never silently "saved" */}
+            {syncError && (
+                <div className="flex-none z-[150] bg-red-50 border-b border-red-200 text-red-700 text-xs px-3 py-2 flex items-center justify-between gap-3 animate-in slide-in-from-top-2 duration-300">
+                    <span className="truncate" title={syncError}>
+                        <span className="font-bold">{t('syncError')}</span> · {syncError}
+                    </span>
+                    <div className="flex items-center gap-2 flex-none">
+                        {hasUnsavedChanges && (
+                            <button onClick={() => saveChanges(false)} className="px-2 py-0.5 rounded bg-red-600 hover:bg-red-700 text-white font-semibold transition-colors">
+                                {t('retry')}
+                            </button>
+                        )}
+                        <button onClick={discardChanges} className="px-2 py-0.5 rounded border border-red-300 hover:bg-red-100 transition-colors">
+                            {t('reloadFromServer')}
+                        </button>
+                    </div>
                 </div>
             )}
 
