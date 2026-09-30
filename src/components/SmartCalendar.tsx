@@ -144,7 +144,7 @@ const CalendarCell = memo(({
 
 export function SmartCalendar() {
     const { t, days: DAYS } = useLanguage();
-    const { config, rawBlocks, schedule, labels, isLocked, instanceNotes, stories, setConfig, setCellsBatch, clearSchedule, addLabel, removeLabel, updateLabelNotes, updateInstanceNote, toggleLock, addTab, closeTab, restoreTab, deleteTabForever, updateCustomTab, reorderTabs, addStory, updateStory, removeStory, hasUnsavedChanges, saveChanges, discardChanges, syncError } = useCalendarStore();
+    const { config, rawBlocks, schedule, labels, isLocked, instanceNotes, stories, setConfig, setCellsBatch, clearSchedule, addLabel, removeLabel, updateLabelNotes, updateInstanceNote, toggleLock, addTab, closeTab, restoreTab, deleteTabForever, updateCustomTab, reorderTabs, addStory, updateStory, removeStory, hasUnsavedChanges, saveChanges, discardChanges, syncError, authExpired, pendingDraft, restoreDraft, discardDraft, signOutForReauth } = useCalendarStore();
     const [selectedBrush, setSelectedBrush] = useState<string>(DEFAULT_LABELS[0].id);
     const [editingLabelId, setEditingLabelId] = useState<string | null>(null);
     const [editingCellKey, setEditingCellKey] = useState<string | null>(null);
@@ -834,8 +834,18 @@ export function SmartCalendar() {
                 </div>
             )}
 
+            {/* Session gone: nothing can be saved until the user signs in again (edits are kept in the local draft) */}
+            {authExpired && (
+                <div className="flex-none z-[150] bg-amber-50 border-b border-amber-200 text-amber-800 text-xs px-3 py-2 flex items-center justify-between gap-3 animate-in slide-in-from-top-2 duration-300">
+                    <span className="font-bold">{t('sessionExpired')}</span>
+                    <button onClick={() => signOutForReauth()} className="flex-none px-2 py-0.5 rounded bg-amber-600 hover:bg-amber-700 text-white font-semibold transition-colors">
+                        {t('signInAgain')}
+                    </button>
+                </div>
+            )}
+
             {/* Sync failure banner: a change that did not reach the server is never silently "saved" */}
-            {syncError && (
+            {syncError && !authExpired && (
                 <div className="flex-none z-[150] bg-red-50 border-b border-red-200 text-red-700 text-xs px-3 py-2 flex items-center justify-between gap-3 animate-in slide-in-from-top-2 duration-300">
                     <span className="truncate" title={syncError}>
                         <span className="font-bold">{t('syncError')}</span> · {syncError}
@@ -848,6 +858,23 @@ export function SmartCalendar() {
                         )}
                         <button onClick={discardChanges} className="px-2 py-0.5 rounded border border-red-300 hover:bg-red-100 transition-colors">
                             {t('reloadFromServer')}
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Unsaved edits from a previous session (reload / expired session): restore or discard */}
+            {pendingDraft && (
+                <div className="flex-none z-[150] bg-sky-50 border-b border-sky-200 text-sky-800 text-xs px-3 py-2 flex items-center justify-between gap-3 animate-in slide-in-from-top-2 duration-300">
+                    <span>
+                        <span className="font-bold">{t('draftFound')}</span> · {new Date(pendingDraft.savedAt).toLocaleString()}
+                    </span>
+                    <div className="flex items-center gap-2 flex-none">
+                        <button onClick={restoreDraft} className="px-2 py-0.5 rounded bg-sky-600 hover:bg-sky-700 text-white font-semibold transition-colors">
+                            {t('restore')}
+                        </button>
+                        <button onClick={discardDraft} className="px-2 py-0.5 rounded border border-sky-300 hover:bg-sky-100 transition-colors">
+                            {t('discard')}
                         </button>
                     </div>
                 </div>

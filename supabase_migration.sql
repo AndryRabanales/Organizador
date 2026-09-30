@@ -18,3 +18,47 @@ BEGIN
     ALTER TABLE public.schedule_entries ADD CONSTRAINT schedule_entries_user_id_day_index_start_minute_key UNIQUE (user_id, day_index, start_minute);
 
 END $$;
+
+-- ---------------------------------------------------------------------------
+-- replace_schedule: atomic replacement of a user's schedule (and optionally notes).
+-- The app calls this instead of DELETE + INSERT so a failed save can never leave
+-- the schedule empty. Runs as the caller (RLS applies).
+create or replace function public.replace_schedule(
+  blocks jsonb,
+  notes jsonb default null,
+  delete_note_keys text[] default '{}'
+)
+returns void
+language plpgsql
+security invoker
+set search_path = public
+as $$
+declare
+  uid uuid := auth.uid();
+begin
+  if uid is null then
+    raise exception 'not authenticated' using errcode = '28000';
+  end if;
+
+  delete from public.schedule_entries where user_id = uid;
+  insert into public.schedule_entries (user_id, day_index, start_minute, duration_minutes, label_id)
+  select uid,
+         (b->>'day_index')::int,
+         (b->>'start_minute')::int,
+         (b->>'duration_minutes')::int,
+         b->>'label_id'
+  from jsonb_array_elements(coalesce(blocks, '[]'::jsonb)) as b;
+
+  if notes is not null then
+    -- Full replace of the notes too (used when restoring a local draft).
+    delete from public.instance_notes where user_id = uid;
+    insert into public.instance_notes (user_id, key, content)
+    select uid, n.key, n.value from jsonb_each_text(notes) as n;
+  elsif coalesce(array_length(delete_note_keys, 1), 0) > 0 then
+    delete from public.instance_notes where user_id = uid and key = any(delete_note_keys);
+  end if;
+end;
+$$;
+
+revoke all on function public.replace_schedule(jsonb, jsonb, text[]) from public;
+grant execute on function public.replace_schedule(jsonb, jsonb, text[]) to authenticated;

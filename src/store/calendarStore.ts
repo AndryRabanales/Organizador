@@ -71,6 +71,14 @@ export interface ScheduleBlock {
     label_id: string;
 }
 
+/** Unsaved schedule-related edits, kept in localStorage so a reload / re-login does not lose them. */
+export interface Draft {
+    config: CalendarConfig;
+    rawBlocks: ScheduleBlock[];
+    rawNotes: Record<string, string>;
+    savedAt: number;
+}
+
 interface CalendarState {
     config: CalendarConfig;
     // Key: "dayIndex-timeSlotIndex", Value: label ID
@@ -86,6 +94,10 @@ interface CalendarState {
     hasUnsavedChanges: boolean;
     /** Message of the last failed sync (save or fetch). null when everything is in sync. */
     syncError: string | null;
+    /** True when the last sync failed because the Supabase session is gone; the user must sign in again. */
+    authExpired: boolean;
+    /** Unsaved edits found in localStorage on load (from a previous session); the user decides to restore or discard. */
+    pendingDraft: Draft | null;
     lastSyncedAt: number | null;
 
     // Internal queue for deferred DB operations
@@ -105,6 +117,10 @@ interface CalendarState {
     refreshIfIdle: () => Promise<void>;
     /** Subscribe to realtime + visibility changes so other devices' edits show up here. Returns an unsubscribe fn. */
     startRealtimeSync: () => () => void;
+    restoreDraft: () => void;
+    discardDraft: () => void;
+    /** Ends the dead session so the login screen appears; the draft in localStorage survives the redirect. */
+    signOutForReauth: () => Promise<void>;
 
     addLabel: (name: string, color: string) => void;
     removeLabel: (id: string) => void;
@@ -142,6 +158,72 @@ function errorMessage(error: unknown): string {
     if (error instanceof Error) return error.message;
     if (error && typeof error === 'object' && 'message' in error) return String((error as { message: unknown }).message);
     return String(error);
+}
+
+export class SessionExpiredError extends Error {
+    constructor() {
+        super('SESSION_EXPIRED');
+        this.name = 'SessionExpiredError';
+    }
+}
+
+/**
+ * Resolves the current user's id, refreshing the token when it is about to expire.
+ * Throws SessionExpiredError instead of returning undefined so a write can never be skipped silently.
+ */
+async function requireUserId(): Promise<string> {
+    const { data: { session } } = await supabase.auth.getSession();
+    const expiresSoon = !!session?.expires_at && session.expires_at * 1000 < Date.now() + 30_000;
+    if (session && !expiresSoon) return session.user.id;
+
+    const { data, error } = await supabase.auth.refreshSession();
+    if (error || !data.session) throw new SessionExpiredError();
+    return data.session.user.id;
+}
+
+// ---- Draft persistence (unsaved edits survive reloads and OAuth redirects) ----
+const DRAFT_KEY = 'calendar-draft';
+
+function writeDraft(draft: Omit<Draft, 'savedAt'>) {
+    try {
+        localStorage.setItem(DRAFT_KEY, JSON.stringify({ ...draft, savedAt: Date.now() }));
+    } catch { /* storage unavailable: nothing to do */ }
+}
+
+function readDraft(): Draft | null {
+    try {
+        const raw = localStorage.getItem(DRAFT_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw) as Partial<Draft>;
+        if (!parsed.config || !Array.isArray(parsed.rawBlocks) || !parsed.rawNotes) return null;
+        return parsed as Draft;
+    } catch {
+        return null;
+    }
+}
+
+function clearDraft() {
+    try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
+}
+
+function sortedNotes(notes: Record<string, string>) {
+    return Object.keys(notes).sort().map(k => [k, notes[k]]);
+}
+
+/** True when the draft holds exactly what the server already has (nothing to restore). */
+function draftMatches(draft: Draft, config: CalendarConfig, blocks: ScheduleBlock[], notes: Record<string, string>) {
+    return JSON.stringify(draft.config) === JSON.stringify(config)
+        && JSON.stringify(optimizeBlocks(draft.rawBlocks)) === JSON.stringify(blocks)
+        && JSON.stringify(sortedNotes(draft.rawNotes)) === JSON.stringify(sortedNotes(notes));
+}
+
+function toRpcBlocks(blocks: ScheduleBlock[]) {
+    return blocks.map(b => ({
+        day_index: b.day_index,
+        start_minute: b.start_minute,
+        duration_minutes: b.duration_minutes,
+        label_id: b.label_id
+    }));
 }
 
 /** Tables whose changes on another device must refresh this one. */
@@ -207,6 +289,9 @@ function optimizeBlocks(blocks: ScheduleBlock[]) {
     return merged;
 }
 
+// Declared before the store: persist() calls partialize synchronously while hydrating.
+let lastConfirmedSnapshot: Pick<CalendarState, 'config' | 'schedule' | 'rawBlocks' | 'labels' | 'rawNotes' | 'instanceNotes' | 'stories' | 'isLocked' | 'dailyNotes'> | null = null;
+
 export const useCalendarStore = create<CalendarState>()(
     persist(
         (set, get) => ({
@@ -229,6 +314,8 @@ export const useCalendarStore = create<CalendarState>()(
             isSaving: false,
             hasUnsavedChanges: false,
             syncError: null,
+            authExpired: false,
+            pendingDraft: null,
             lastSyncedAt: null,
             pendingOps: [],
 
@@ -278,7 +365,7 @@ export const useCalendarStore = create<CalendarState>()(
                     // If we have default labels but no DB labels, seed them!
                     // Check if this is a fresh user (no labels in DB)
                     if ((!labelsData || labelsData.length === 0) && newLabels === DEFAULT_LABELS) {
-                        const userId = (await supabase.auth.getUser()).data.user?.id;
+                        const userId = await requireUserId();
                         if (userId) {
                             // Seed defaults (errors are logged, never silently dropped)
                             must(await supabase.from('labels').insert(DEFAULT_LABELS.map(l => ({
@@ -332,6 +419,16 @@ export const useCalendarStore = create<CalendarState>()(
                         return;
                     }
 
+                    // Unsaved edits from a previous session (reload, expired session, OAuth redirect)?
+                    let pendingDraft: Draft | null = null;
+                    if (!silent) {
+                        const draft = readDraft();
+                        if (draft) {
+                            if (draftMatches(draft, newConfig, optimizedBlocks, newRawNotes)) clearDraft();
+                            else pendingDraft = draft;
+                        }
+                    }
+
                     set((state) => ({
                         config: newConfig,
                         labels: newLabels,
@@ -345,14 +442,59 @@ export const useCalendarStore = create<CalendarState>()(
                         hasUnsavedChanges: false,
                         pendingOps: [],
                         syncError: null,
+                        authExpired: false,
+                        pendingDraft: silent ? state.pendingDraft : pendingDraft,
                         lastSyncedAt: Date.now()
                     }));
                     console.log(silent ? "Data refreshed" : "Data fetched successfully");
 
                 } catch (error) {
                     console.error("Error fetching data:", error);
-                    set({ isLoading: false, syncError: errorMessage(error) });
+                    set({ isLoading: false, syncError: errorMessage(error), authExpired: error instanceof SessionExpiredError });
                 }
+            },
+
+            restoreDraft: () => {
+                const draft = get().pendingDraft;
+                if (!draft) return;
+                const blocks = optimizeBlocks(draft.rawBlocks);
+                const notes = { ...draft.rawNotes };
+                const config = { ...draft.config };
+                const { schedule, instanceNotes } = generateUIState(config, blocks, notes);
+
+                set((state) => ({
+                    config,
+                    rawBlocks: blocks,
+                    rawNotes: notes,
+                    schedule,
+                    instanceNotes,
+                    pendingDraft: null,
+                    hasUnsavedChanges: true,
+                    pendingOps: [...state.pendingOps, async () => {
+                        const userId = await requireUserId();
+                        must(await supabase.from('calendar_config').upsert({
+                            user_id: userId,
+                            start_hour: config.startHour,
+                            start_minute: config.startMinute,
+                            end_hour: config.endHour,
+                            end_minute: config.endMinute,
+                            step_minutes: config.stepMinutes,
+                            updated_at: new Date().toISOString()
+                        }, { onConflict: 'user_id' }));
+                        // Full atomic replace of blocks + notes with what the draft holds.
+                        must(await supabase.rpc('replace_schedule', { blocks: toRpcBlocks(blocks), notes }));
+                    }]
+                }));
+            },
+
+            discardDraft: () => {
+                clearDraft();
+                set({ pendingDraft: null });
+            },
+
+            signOutForReauth: async () => {
+                // The draft is already in localStorage; App.tsx shows the login screen when the session ends.
+                await supabase.auth.signOut();
             },
 
             refreshIfIdle: async () => {
@@ -417,10 +559,16 @@ export const useCalendarStore = create<CalendarState>()(
                             lastSyncedAt: Date.now()
                         };
                     });
-                    // Flush anything that was queued while we were saving.
-                    if (get().pendingOps.length > 0) void get().saveChanges(true);
+                    if (get().pendingOps.length > 0) {
+                        // Flush anything that was queued while we were saving.
+                        void get().saveChanges(true);
+                    } else {
+                        // Everything the server confirmed; the local draft is no longer needed.
+                        clearDraft();
+                    }
                 } catch (error) {
                     const message = errorMessage(error);
+                    const expired = error instanceof SessionExpiredError;
                     console.error("Error saving changes:", error);
                     const done = opsToRun.slice(0, completed);
                     set((state) => ({
@@ -429,16 +577,18 @@ export const useCalendarStore = create<CalendarState>()(
                         hasUnsavedChanges: true,
                         isSaving: false,
                         isLoading: false,
-                        syncError: message
+                        syncError: message,
+                        authExpired: expired
                     }));
-                    if (!silent) alert(`Error saving changes: ${message}`);
+                    if (!silent && !expired) alert(`Error saving changes: ${message}`);
                 }
             },
 
             discardChanges: () => {
-                const { fetchData } = get();
-                // Just re-fetch data from DB, which overwrites local state
-                fetchData();
+                clearDraft();
+                set({ pendingOps: [], hasUnsavedChanges: false, syncError: null });
+                // Re-fetch data from DB, which overwrites local state
+                void get().fetchData();
             },
 
             setConfig: async (newConfigParams) => {
@@ -454,7 +604,7 @@ export const useCalendarStore = create<CalendarState>()(
                         instanceNotes: newInstanceNotes,
                         hasUnsavedChanges: true,
                         pendingOps: [...state.pendingOps, async () => {
-                            const userId = (await supabase.auth.getUser()).data.user?.id;
+                            const userId = await requireUserId();
                             if (userId) {
                                 must(await supabase.from('calendar_config').upsert({
                                     user_id: userId,
@@ -557,30 +707,13 @@ export const useCalendarStore = create<CalendarState>()(
                     instanceNotes: newInstanceNotes,
                     hasUnsavedChanges: true,
                     pendingOps: [...state.pendingOps, async () => {
-                        const userId = (await supabase.auth.getUser()).data.user?.id;
-                        if (!userId) return;
-
-                        // Only delete the schedule entries and re-insert (full replace for schedule is fine)
-                        must(await supabase.from('schedule_entries').delete().eq('user_id', userId));
-
-                        const scheduleUpserts = blocksSnapshot.map(b => ({
-                            user_id: userId,
-                            day_index: b.day_index,
-                            start_minute: b.start_minute,
-                            duration_minutes: b.duration_minutes,
-                            label_id: b.label_id
+                        await requireUserId();
+                        // Single transaction on the server (replace_schedule): the old rows are only gone
+                        // once the new ones are in, so a failure can never leave the schedule empty.
+                        must(await supabase.rpc('replace_schedule', {
+                            blocks: toRpcBlocks(blocksSnapshot),
+                            delete_note_keys: keysToDelete
                         }));
-
-                        if (scheduleUpserts.length > 0) {
-                            must(await supabase.from('schedule_entries').insert(scheduleUpserts));
-                        }
-
-                        // Only delete the specific note keys that were removed — never wipe all notes
-                        for (const key of keysToDelete) {
-                            must(await supabase.from('instance_notes')
-                                .delete()
-                                .match({ user_id: userId, key }));
-                        }
                     }]
                 }));
             },
@@ -595,11 +728,8 @@ export const useCalendarStore = create<CalendarState>()(
                     rawNotes: {},
                     hasUnsavedChanges: true,
                     pendingOps: [...state.pendingOps, async () => {
-                        const userId = (await supabase.auth.getUser()).data.user?.id;
-                        if (userId) {
-                            must(await supabase.from('schedule_entries').delete().eq('user_id', userId));
-                            must(await supabase.from('instance_notes').delete().eq('user_id', userId));
-                        }
+                        await requireUserId();
+                        must(await supabase.rpc('replace_schedule', { blocks: [], notes: {} }));
                     }]
                 }
             }),
@@ -620,7 +750,7 @@ export const useCalendarStore = create<CalendarState>()(
                     labels: [...state.labels, newLabel],
                     hasUnsavedChanges: true,
                     pendingOps: [...state.pendingOps, async () => {
-                        const userId = (await supabase.auth.getUser()).data.user?.id;
+                        const userId = await requireUserId();
                         if (userId) {
                             must(await supabase.from('labels').insert({
                                 id: newLabel.id,
@@ -669,7 +799,7 @@ export const useCalendarStore = create<CalendarState>()(
                         instanceNotes: newInstanceNotes,
                         hasUnsavedChanges: true,
                         pendingOps: [...state.pendingOps, async () => {
-                            const userId = (await supabase.auth.getUser()).data.user?.id;
+                            const userId = await requireUserId();
                             if (!userId) return;
                             // schedule_entries cascade on label delete; notes are keyed by time so remove them explicitly.
                             must(await supabase.from('labels').delete().eq('id', id));
@@ -716,7 +846,7 @@ export const useCalendarStore = create<CalendarState>()(
                         instanceNotes: newInstanceNotes,
                         hasUnsavedChanges: true,
                         pendingOps: [...state.pendingOps, async () => {
-                            const userId = (await supabase.auth.getUser()).data.user?.id;
+                            const userId = await requireUserId();
                             if (!userId) return;
 
                             const isBlank = !notes || notes.replace(/<[^>]*>/g, '').trim() === '';
@@ -754,7 +884,7 @@ export const useCalendarStore = create<CalendarState>()(
                     stories: [...state.stories, newStory],
                     hasUnsavedChanges: true,
                     pendingOps: [...state.pendingOps, async () => {
-                        const userId = (await supabase.auth.getUser()).data.user?.id;
+                        const userId = await requireUserId();
                         if (userId) {
                             must(await supabase.from('stories').insert({
                                 id: newStory.id,
@@ -943,17 +1073,33 @@ export const useCalendarStore = create<CalendarState>()(
         }),
         {
             name: 'calendar-storage',
-            partialize: (state) => ({
-                config: state.config,
-                schedule: state.schedule,
-                labels: state.labels,
-                rawNotes: state.rawNotes,
-                instanceNotes: state.instanceNotes,
-                stories: state.stories,
-                isLocked: state.isLocked,
-                dailyNotes: state.dailyNotes
-                // Exclude pendingOps and hasUnsavedChanges
-            })
+            // Only what the server confirmed reaches localStorage. While edits are pending, the previous
+            // confirmed snapshot is kept, so a reload can never show "saved" data the server never got.
+            // (Pending edits themselves live in the separate draft, see writeDraft.)
+            partialize: (state) => {
+                const confirmed = !state.hasUnsavedChanges && state.pendingOps.length === 0 && !state.isSaving;
+                if (confirmed || !lastConfirmedSnapshot) {
+                    lastConfirmedSnapshot = {
+                        config: state.config,
+                        schedule: state.schedule,
+                        rawBlocks: state.rawBlocks,
+                        labels: state.labels,
+                        rawNotes: state.rawNotes,
+                        instanceNotes: state.instanceNotes,
+                        stories: state.stories,
+                        isLocked: state.isLocked,
+                        dailyNotes: state.dailyNotes
+                    };
+                }
+                return lastConfirmedSnapshot;
+            }
         }
     )
 );
+
+// Keep the draft in sync with every unsaved schedule/config/note edit.
+useCalendarStore.subscribe((state, prev) => {
+    if (!state.hasUnsavedChanges) return;
+    if (state.rawBlocks === prev.rawBlocks && state.rawNotes === prev.rawNotes && state.config === prev.config) return;
+    writeDraft({ config: state.config, rawBlocks: state.rawBlocks, rawNotes: state.rawNotes });
+});

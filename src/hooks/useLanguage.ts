@@ -72,7 +72,11 @@ const LOCALE_DATA = {
         freeTime: 'Free Time',
         syncError: 'Changes could not be saved',
         retry: 'Retry',
-        reloadFromServer: 'Reload from server'
+        reloadFromServer: 'Reload from server',
+        sessionExpired: 'Your session expired. Sign in again to keep saving; your edits are kept.',
+        signInAgain: 'Sign in again',
+        draftFound: 'Unsaved changes from a previous session were found',
+        discard: 'Discard'
     },
     es: {
         // Days
@@ -143,7 +147,11 @@ const LOCALE_DATA = {
         freeTime: 'Tiempo Libre',
         syncError: 'No se pudieron guardar los cambios',
         retry: 'Reintentar',
-        reloadFromServer: 'Recargar del servidor'
+        reloadFromServer: 'Recargar del servidor',
+        sessionExpired: 'Tu sesión expiró. Vuelve a iniciar sesión para seguir guardando; tus cambios se conservan.',
+        signInAgain: 'Iniciar sesión de nuevo',
+        draftFound: 'Se encontraron cambios sin guardar de una sesión anterior',
+        discard: 'Descartar'
     }
 };
 
