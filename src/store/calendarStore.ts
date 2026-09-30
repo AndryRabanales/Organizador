@@ -330,6 +330,8 @@ export const useCalendarStore = create<CalendarState>()(
                 }
                 try {
                     console.log(silent ? "Refreshing from Supabase..." : "Fetching from Supabase...");
+                    // Detect a dead session up front (shows the sign-in banner instead of a generic error).
+                    await requireUserId();
                     const { data: configData } = must(await supabase.from('calendar_config').select('*').maybeSingle());
                     const { data: labelsData, error: lError } = must(await supabase.from('labels').select('*'));
                     const { data: scheduleData } = must(await supabase.from('schedule_entries').select('*'));
