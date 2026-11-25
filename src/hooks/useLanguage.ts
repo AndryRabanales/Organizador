@@ -76,7 +76,22 @@ const LOCALE_DATA = {
         sessionExpired: 'Your session expired. Sign in again to keep saving; your edits are kept.',
         signInAgain: 'Sign in again',
         draftFound: 'Unsaved changes from a previous session were found',
-        discard: 'Discard'
+        discard: 'Discard',
+        goals: 'Goals',
+        schedule: 'Schedule',
+        myGoals: 'My goals',
+        newGoal: 'New goal',
+        addGoal: 'Add goal',
+        createGoals: 'Create goals',
+        deleteGoal: 'Delete goal',
+        confirmDeleteGoal: 'Delete this goal and all of its history?',
+        goalName: 'Goal name',
+        goalColor: 'Color',
+        goalFromLabel: 'Label',
+        goalsEmpty: 'No goals yet.',
+        goalsFromLabels: 'From your labels',
+        prevMonth: 'Previous month',
+        nextMonth: 'Next month'
     },
     es: {
         // Days
@@ -151,7 +166,22 @@ const LOCALE_DATA = {
         sessionExpired: 'Tu sesión expiró. Vuelve a iniciar sesión para seguir guardando; tus cambios se conservan.',
         signInAgain: 'Iniciar sesión de nuevo',
         draftFound: 'Se encontraron cambios sin guardar de una sesión anterior',
-        discard: 'Descartar'
+        discard: 'Descartar',
+        goals: 'Metas',
+        schedule: 'Horario',
+        myGoals: 'Mis metas',
+        newGoal: 'Nueva meta',
+        addGoal: 'Agregar meta',
+        createGoals: 'Crear metas',
+        deleteGoal: 'Eliminar meta',
+        confirmDeleteGoal: '¿Eliminar esta meta y todo su historial?',
+        goalName: 'Nombre de la meta',
+        goalColor: 'Color',
+        goalFromLabel: 'Etiqueta',
+        goalsEmpty: 'Aún no hay metas.',
+        goalsFromLabels: 'Desde tus etiquetas',
+        prevMonth: 'Mes anterior',
+        nextMonth: 'Mes siguiente'
     }
 };
 

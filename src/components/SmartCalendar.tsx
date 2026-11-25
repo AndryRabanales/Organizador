@@ -1,4 +1,6 @@
-import { useCalendarStore, DEFAULT_LABELS } from '../store/calendarStore';
+import { useCalendarStore, DEFAULT_LABELS, localDayKey } from '../store/calendarStore';
+import { GoalsPanel } from './GoalsPanel';
+import type { GoalsMode } from './GoalsPanel';
 import { Button } from './Button';
 import clsx from 'clsx';
 import { useState, useEffect, useRef, memo, useCallback, useMemo } from 'react';
@@ -218,6 +220,22 @@ export function SmartCalendar() {
 
 
 
+    // --- SECTION SWITCH: the schedule or the goals tracker ---
+    const [section, setSection] = useState<'schedule' | 'goals'>(() => {
+        const saved = typeof window !== 'undefined' ? localStorage.getItem('smartCalendarSection') : null;
+        return saved === 'goals' ? 'goals' : 'schedule';
+    });
+    // Goals has its own three sections, cycled with the same bottom button: Day -> Month -> Create -> Day
+    const [goalsMode, setGoalsMode] = useState<GoalsMode>(() => {
+        const saved = typeof window !== 'undefined' ? localStorage.getItem('smartCalendarGoalsMode') : null;
+        return saved === 'edit' || saved === 'month' ? saved : 'day';
+    });
+    useEffect(() => {
+        localStorage.setItem('smartCalendarSection', section);
+        localStorage.setItem('smartCalendarGoalsMode', goalsMode);
+    }, [section, goalsMode]);
+    const goToGoalsEdit = useCallback(() => setGoalsMode('edit'), []);
+
     // --- APP MODES (View -> Edit -> Focus) ---
     const [appMode, setAppMode] = useState<'view' | 'edit' | 'focus'>(() => {
         // Persist mode across reloads
@@ -235,20 +253,38 @@ export function SmartCalendar() {
 
     // Sync appMode with store's isLocked
     useEffect(() => {
-        const shouldBeLocked = appMode !== 'edit';
+        // The schedule is only editable in its own edit mode (never while the goals area is showing)
+        const shouldBeLocked = section === 'goals' || appMode !== 'edit';
         if (isLocked !== shouldBeLocked) {
             toggleLock();
         }
-    }, [appMode]);
+    }, [appMode, section]);
 
-    // Cycle Modes: View -> Edit -> Focus -> View
+    // Cycle Modes. Schedule: View -> Edit -> Focus -> View. Goals: Day -> Month -> Create -> Day
     const cycleMode = () => {
+        if (section === 'goals') {
+            setGoalsMode(prev => {
+                if (prev === 'day') return 'month';
+                if (prev === 'month') return 'edit';
+                return 'day';
+            });
+            return;
+        }
         setAppMode(prev => {
             if (prev === 'view') return 'edit';
             if (prev === 'edit') return 'focus';
             return 'view';
         });
     };
+    // Which of the three button states to show: the goals sections map onto the schedule's (month ~ week view, day ~ focus)
+    const cycleKey = section === 'goals'
+        ? (goalsMode === 'month' ? 'view' : goalsMode === 'edit' ? 'edit' : 'focus')
+        : appMode;
+
+    // The goals area replaces the grid: start each of its sections from the top
+    useEffect(() => {
+        if (section === 'goals') containerRef.current?.scrollTo({ top: 0 });
+    }, [section, goalsMode]);
 
     // Calculate Current Day Index (0=Monday, 6=Sunday)
     const currentDayIndex = useMemo(() => {
@@ -974,14 +1010,33 @@ export function SmartCalendar() {
                     !isLocked && "hidden", // HIDE in Config Mode
                     activeBottomPanel === 'config' && "hidden"
                 )}>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-col items-start gap-1.5 lg:flex-row lg:items-center lg:gap-3">
                         <h1 className="text-xl font-black text-slate-900 tracking-tighter drop-shadow-sm">
                             <span className="text-emerald-600">BIO</span> PLANIFICADOR <span className="text-xs text-emerald-500 font-mono border border-emerald-200 px-1 rounded ml-1 bg-emerald-50">v2.2-AI</span>
                         </h1>
+                        {/* SECTION SWITCH: stop viewing the schedule, view the goals (and back) */}
+                        <div className="inline-flex p-0.5 rounded-lg bg-slate-100 border border-slate-200 shadow-inner" role="group" aria-label={`${t('schedule')} / ${t('goals')}`}>
+                            {(['schedule', 'goals'] as const).map(key => (
+                                <button
+                                    type="button"
+                                    key={key}
+                                    aria-pressed={section === key}
+                                    onClick={() => setSection(key)}
+                                    className={clsx(
+                                        "px-3 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all",
+                                        section === key
+                                            ? "bg-white text-emerald-600 shadow-sm ring-1 ring-slate-900/5"
+                                            : "text-slate-500 hover:text-slate-700"
+                                    )}
+                                >
+                                    {t(key)}
+                                </button>
+                            ))}
+                        </div>
                     </div>
 
                     {/* AI INPUT (CENTERED) */}
-                    {appMode === 'view' && (
+                    {appMode === 'view' && section === 'schedule' && (
                         <div className="flex-1 max-w-2xl mx-4 relative group">
                             <div className="absolute left-3 top-1/2 -translate-y-1/2 text-violet-500 animate-pulse">✨</div>
                             <input
@@ -1055,8 +1110,13 @@ export function SmartCalendar() {
                 {/* Grid */}
                 {/* Grid */}
                 <div ref={containerRef} className="flex-1 overflow-auto p-0 pt-0 custom-scrollbar overscroll-x-none">
+                    {/* GOALS AREA: replaces the schedule grid while the switch is on "Metas" */}
+                    {section === 'goals' && (
+                        <GoalsPanel mode={goalsMode} todayKey={localDayKey(now)} onCreateRequest={goToGoalsEdit} />
+                    )}
                     <div ref={panelRef} className={clsx(
                         "glass-panel p-1 relative select-none transition-all duration-500 mb-16",
+                        section === 'goals' && "hidden", // The grid stays mounted (refs/measurements) but out of view
                         appMode === 'focus' ? "w-[75%] max-w-[280px] mx-auto shadow-2xl ring-1 ring-slate-900/5 bg-white rounded-xl my-4" : "w-full max-w-none mx-auto"
                     )}>
                         {/* Real-time Arrow */}
@@ -1208,27 +1268,27 @@ export function SmartCalendar() {
                 {/* Toggle Handle (Absolute Top Center) */}
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full z-50">
                     <button
-                        onClick={cycleMode} // Cycle through 3 modes
+                        onClick={cycleMode} // Cycle through the 3 modes of the current section
                         className={clsx(
                             "flex items-center justify-center w-16 h-8 rounded-t-xl border-t border-x border-slate-300 backdrop-blur-md transition-all duration-300 shadow-[0_-5px_15px_rgba(0,0,0,0.1)]",
-                            appMode === 'edit'
+                            cycleKey === 'edit'
                                 ? "bg-white text-emerald-600 border-b-white translate-y-[1px]"
                                 : "bg-white/80 text-slate-500 hover:text-slate-700 hover:bg-slate-50 border-b-slate-200"
                         )}
-                        title={`Mode: ${appMode.toUpperCase()}`}
+                        title={`Mode: ${(section === 'goals' ? `goals ${goalsMode}` : appMode).toUpperCase()}`}
                     >
-                        {appMode === 'view' && ( // Icon for "Go to Edit"
+                        {cycleKey === 'view' && ( // Icon for "Go to Edit"
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
                                 <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
                             </svg>
                         )}
-                        {appMode === 'edit' && ( // Icon for "Go to Focus"
+                        {cycleKey === 'edit' && ( // Icon for "Go to Focus" (single day)
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
                             </svg>
                         )}
-                        {appMode === 'focus' && ( // Icon for "Go to View"
+                        {cycleKey === 'focus' && ( // Icon for "Go to View" (full table)
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z" />
                             </svg>

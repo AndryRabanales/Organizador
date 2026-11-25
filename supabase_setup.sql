@@ -108,3 +108,59 @@ create policy "Users can update their own stories" on public.stories
 
 create policy "Users can delete their own stories" on public.stories
   for delete using (auth.uid() = user_id);
+
+-- 7. GOALS ("Metas" area: a goal / habit tracker)
+-- One row per goal. label_id optionally reuses a schedule label (name and color follow the label).
+create table if not exists public.goals (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  name text not null,
+  label_id text references public.labels(id) on delete set null,
+  color text, -- own color for goals created from scratch
+  created_at timestamp with time zone not null default timezone('utc'::text, now())
+);
+
+create index if not exists goals_user_id_idx on public.goals(user_id);
+
+alter table public.goals enable row level security;
+
+create policy "Users can view their own goals" on public.goals
+  for select using ((select auth.uid()) = user_id);
+
+create policy "Users can insert their own goals" on public.goals
+  for insert with check ((select auth.uid()) = user_id);
+
+create policy "Users can update their own goals" on public.goals
+  for update using ((select auth.uid()) = user_id);
+
+create policy "Users can delete their own goals" on public.goals
+  for delete using ((select auth.uid()) = user_id);
+
+-- 8. GOAL CHECKS (history: one row per goal per day it was done)
+create table if not exists public.goal_checks (
+  goal_id uuid not null references public.goals(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  day date not null, -- the user's local calendar day
+  created_at timestamp with time zone not null default timezone('utc'::text, now()),
+  primary key (goal_id, day)
+);
+
+create index if not exists goal_checks_user_day_idx on public.goal_checks(user_id, day);
+
+alter table public.goal_checks enable row level security;
+
+create policy "Users can view their own goal checks" on public.goal_checks
+  for select using ((select auth.uid()) = user_id);
+
+create policy "Users can insert their own goal checks" on public.goal_checks
+  for insert with check ((select auth.uid()) = user_id);
+
+create policy "Users can update their own goal checks" on public.goal_checks
+  for update using ((select auth.uid()) = user_id);
+
+create policy "Users can delete their own goal checks" on public.goal_checks
+  for delete using ((select auth.uid()) = user_id);
+
+-- Realtime: other devices refresh when goals or their marks change
+alter publication supabase_realtime add table public.goals;
+alter publication supabase_realtime add table public.goal_checks;

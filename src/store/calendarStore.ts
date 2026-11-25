@@ -29,6 +29,45 @@ export interface CustomLabel {
     customTabs: Record<string, CustomTab>; // Data for custom tabs
 }
 
+/** A goal / habit tracked day by day in the "Metas" area. */
+export interface Goal {
+    id: string;
+    name: string;
+    /** Optional link to a schedule label: the goal then shows that label's current name and color. */
+    labelId: string | null;
+    /** Own color for goals created from scratch (null = app accent). */
+    color: string | null;
+    createdAt: string;
+}
+
+/** Key of one "goal done on day" mark inside goalChecks. */
+export function goalCheckKey(goalId: string, dayKey: string): string {
+    return `${goalId}|${dayKey}`;
+}
+
+/** First and last day (YYYY-MM-DD) of a month given as YYYY-MM. */
+function monthRange(monthKey: string): { from: string; to: string } {
+    const [y, m] = monthKey.split('-').map(Number);
+    const lastDay = new Date(y, m, 0).getDate();
+    return { from: `${monthKey}-01`, to: `${monthKey}-${String(lastDay).padStart(2, '0')}` };
+}
+
+/** Marks whose day falls outside [from, to] (the day is the last 10 characters of the key). */
+function checksOutside(checks: Record<string, true>, from: string, to: string): Record<string, true> {
+    const kept: Record<string, true> = {};
+    Object.keys(checks).forEach(key => {
+        const day = key.slice(-10);
+        if (day < from || day > to) kept[key] = true;
+    });
+    return kept;
+}
+
+/** Local calendar day as YYYY-MM-DD (not UTC, so the checklist flips at the user's midnight). */
+export function localDayKey(date: Date): string {
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
 export interface Story {
     id: string;
     dayIndex: number; // 0-6 (Mon-Sun)
@@ -89,6 +128,11 @@ interface CalendarState {
     instanceNotes: Record<string, string>; // "day-slot" -> note
     dailyNotes: string;
     stories: Story[];
+    goals: Goal[];
+    /** Done marks, keyed with goalCheckKey(goalId, day). Only the months in loadedGoalMonths are complete. */
+    goalChecks: Record<string, true>;
+    /** Months (YYYY-MM) whose marks have been fetched from the server. */
+    loadedGoalMonths: string[];
     isLoading: boolean; // Loading state
     isSaving: boolean;
     hasUnsavedChanges: boolean;
@@ -133,6 +177,16 @@ interface CalendarState {
     addStory: (story: Omit<Story, 'id' | 'createdAt' | 'status'>) => void;
     updateStory: (id: string, updates: Partial<Story>) => void;
     removeStory: (id: string) => void;
+
+    // Goal Actions
+    addGoal: (name: string, opts?: { labelId?: string; color?: string }) => void;
+    updateGoal: (id: string, updates: { name?: string; color?: string }) => void;
+    /** Deletes the goal together with all of its history. */
+    removeGoal: (id: string) => void;
+    /** Marks the goal as done on the given local day, or removes the mark if it is already there. */
+    toggleGoalCheck: (id: string, dayKey: string) => void;
+    /** Fetches the marks of a month (YYYY-MM) that has not been loaded yet. */
+    loadGoalChecksForMonth: (monthKey: string) => Promise<void>;
 
     // Tab Actions
     addTab: (labelId: string) => void;
@@ -227,7 +281,25 @@ function toRpcBlocks(blocks: ScheduleBlock[]) {
 }
 
 /** Tables whose changes on another device must refresh this one. */
-const SYNCED_TABLES = ['calendar_config', 'labels', 'schedule_entries', 'instance_notes', 'stories'] as const;
+const SYNCED_TABLES = ['calendar_config', 'labels', 'schedule_entries', 'instance_notes', 'stories', 'goals', 'goal_checks'] as const;
+
+/** Done marks between two days (inclusive), read in pages because PostgREST caps a response at 1000 rows. */
+async function fetchGoalChecks(fromDay: string, toDay: string): Promise<Record<string, true>> {
+    const PAGE = 1000;
+    const checks: Record<string, true> = {};
+    for (let offset = 0; ; offset += PAGE) {
+        const { data } = must(await supabase.from('goal_checks')
+            .select('goal_id, day')
+            .gte('day', fromDay)
+            .lte('day', toDay)
+            .order('day', { ascending: true })
+            .order('goal_id', { ascending: true })
+            .range(offset, offset + PAGE - 1));
+        (data ?? []).forEach(row => { checks[goalCheckKey(row.goal_id, row.day)] = true; });
+        if (!data || data.length < PAGE) break;
+    }
+    return checks;
+}
 
 function generateUIState(config: CalendarConfig, rawBlocks: ScheduleBlock[], rawNotes: Record<string, string>) {
     const newSchedule: Record<string, string> = {};
@@ -290,7 +362,7 @@ function optimizeBlocks(blocks: ScheduleBlock[]) {
 }
 
 // Declared before the store: persist() calls partialize synchronously while hydrating.
-let lastConfirmedSnapshot: Pick<CalendarState, 'config' | 'schedule' | 'rawBlocks' | 'labels' | 'rawNotes' | 'instanceNotes' | 'stories' | 'isLocked' | 'dailyNotes'> | null = null;
+let lastConfirmedSnapshot: Pick<CalendarState, 'config' | 'schedule' | 'rawBlocks' | 'labels' | 'rawNotes' | 'instanceNotes' | 'stories' | 'goals' | 'goalChecks' | 'isLocked' | 'dailyNotes'> | null = null;
 
 export const useCalendarStore = create<CalendarState>()(
     persist(
@@ -309,6 +381,9 @@ export const useCalendarStore = create<CalendarState>()(
             dailyNotes: '',
             labels: DEFAULT_LABELS,
             stories: [],
+            goals: [],
+            goalChecks: {},
+            loadedGoalMonths: [],
             isLocked: true, // Default to true (Viewing Mode)
             isLoading: true, // Start as true
             isSaving: false,
@@ -337,6 +412,15 @@ export const useCalendarStore = create<CalendarState>()(
                     const { data: scheduleData } = must(await supabase.from('schedule_entries').select('*'));
                     const { data: notesData } = must(await supabase.from('instance_notes').select('*'));
                     const { data: storiesData } = must(await supabase.from('stories').select('*'));
+                    const { data: goalsData } = must(await supabase.from('goals').select('*').order('created_at', { ascending: true }));
+
+                    // Goal marks: this month and the previous one up front; older months load when opened.
+                    const today = new Date();
+                    const currentMonth = localDayKey(today).slice(0, 7);
+                    const previousMonth = localDayKey(new Date(today.getFullYear(), today.getMonth() - 1, 1)).slice(0, 7);
+                    const recentFrom = monthRange(previousMonth).from;
+                    const recentTo = monthRange(currentMonth).to;
+                    const recentChecks = await fetchGoalChecks(recentFrom, recentTo);
 
                     if (lError) throw lError;
 
@@ -439,6 +523,18 @@ export const useCalendarStore = create<CalendarState>()(
                         schedule: newSchedule,
                         instanceNotes: newInstanceNotes,
                         stories: newStories,
+                        goals: (goalsData ?? []).map((g): Goal => ({
+                            id: g.id,
+                            name: g.name,
+                            labelId: g.label_id ?? null,
+                            color: g.color ?? null,
+                            createdAt: g.created_at
+                        })),
+                        // A silent refresh keeps older months on screen (they re-load when viewed); a full load starts clean.
+                        goalChecks: silent
+                            ? { ...checksOutside(state.goalChecks, recentFrom, recentTo), ...recentChecks }
+                            : recentChecks,
+                        loadedGoalMonths: [previousMonth, currentMonth],
                         isLoading: false,
                         isLocked: silent ? state.isLocked : true, // Force viewing mode on a full load only
                         hasUnsavedChanges: false,
@@ -1071,6 +1167,113 @@ export const useCalendarStore = create<CalendarState>()(
                 }));
             },
 
+            addGoal: (name, opts = {}) => {
+                const trimmed = name.trim();
+                if (!trimmed) return;
+                const newGoal: Goal = {
+                    id: crypto.randomUUID(),
+                    name: trimmed,
+                    labelId: opts.labelId ?? null,
+                    color: opts.color ?? null,
+                    createdAt: new Date().toISOString()
+                };
+                set((state) => ({
+                    goals: [...state.goals, newGoal],
+                    hasUnsavedChanges: true,
+                    pendingOps: [...state.pendingOps, async () => {
+                        const userId = await requireUserId();
+                        must(await supabase.from('goals').insert({
+                            id: newGoal.id,
+                            user_id: userId,
+                            name: newGoal.name,
+                            label_id: newGoal.labelId,
+                            color: newGoal.color,
+                            created_at: newGoal.createdAt
+                        }));
+                    }]
+                }));
+            },
+
+            updateGoal: (id, updates) => {
+                const clean: { name?: string; color?: string } = {};
+                if (updates.name !== undefined && updates.name.trim()) clean.name = updates.name.trim();
+                if (updates.color !== undefined) clean.color = updates.color;
+                if (Object.keys(clean).length === 0) return;
+                set((state) => {
+                    if (!state.goals.some(g => g.id === id)) return {};
+                    return {
+                        goals: state.goals.map(g => g.id === id ? { ...g, ...clean } : g),
+                        hasUnsavedChanges: true,
+                        pendingOps: [...state.pendingOps, async () => {
+                            await requireUserId();
+                            must(await supabase.from('goals').update(clean).eq('id', id));
+                        }]
+                    };
+                });
+            },
+
+            removeGoal: (id) => {
+                set((state) => {
+                    const prefix = `${id}|`;
+                    const goalChecks: Record<string, true> = {};
+                    Object.keys(state.goalChecks).forEach(key => {
+                        if (!key.startsWith(prefix)) goalChecks[key] = true;
+                    });
+                    return {
+                        goals: state.goals.filter(g => g.id !== id),
+                        goalChecks,
+                        hasUnsavedChanges: true,
+                        pendingOps: [...state.pendingOps, async () => {
+                            await requireUserId();
+                            // goal_checks rows go with it (on delete cascade)
+                            must(await supabase.from('goals').delete().eq('id', id));
+                        }]
+                    };
+                });
+            },
+
+            toggleGoalCheck: (id, dayKey) => {
+                set((state) => {
+                    if (!state.goals.some(g => g.id === id)) return {};
+                    const key = goalCheckKey(id, dayKey);
+                    const goalChecks = { ...state.goalChecks };
+                    const checked = !goalChecks[key];
+                    if (checked) goalChecks[key] = true;
+                    else delete goalChecks[key];
+                    return {
+                        goalChecks,
+                        hasUnsavedChanges: true,
+                        pendingOps: [...state.pendingOps, async () => {
+                            const userId = await requireUserId();
+                            if (checked) {
+                                must(await supabase.from('goal_checks').upsert(
+                                    { goal_id: id, user_id: userId, day: dayKey },
+                                    { onConflict: 'goal_id,day', ignoreDuplicates: true }
+                                ));
+                            } else {
+                                must(await supabase.from('goal_checks').delete().match({ goal_id: id, day: dayKey }));
+                            }
+                        }]
+                    };
+                });
+            },
+
+            loadGoalChecksForMonth: async (monthKey) => {
+                if (get().loadedGoalMonths.includes(monthKey)) return;
+                try {
+                    await requireUserId();
+                    const { from, to } = monthRange(monthKey);
+                    const fetched = await fetchGoalChecks(from, to);
+                    set((state) => state.loadedGoalMonths.includes(monthKey) ? {} : {
+                        goalChecks: { ...checksOutside(state.goalChecks, from, to), ...fetched },
+                        loadedGoalMonths: [...state.loadedGoalMonths, monthKey]
+                    });
+                } catch (error) {
+                    console.error("Error loading goal history:", error);
+                    set({ syncError: errorMessage(error), authExpired: error instanceof SessionExpiredError });
+                }
+            },
+
             toggleLock: () => set((state) => ({ isLocked: !state.isLocked })),
         }),
         {
@@ -1089,6 +1292,8 @@ export const useCalendarStore = create<CalendarState>()(
                         rawNotes: state.rawNotes,
                         instanceNotes: state.instanceNotes,
                         stories: state.stories,
+                        goals: state.goals,
+                        goalChecks: state.goalChecks,
                         isLocked: state.isLocked,
                         dailyNotes: state.dailyNotes
                     };
